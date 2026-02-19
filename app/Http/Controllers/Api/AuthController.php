@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
 use App\Http\Resources\UserResource;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 
 class AuthController extends Controller
@@ -49,11 +51,11 @@ class AuthController extends Controller
         if (! Auth::attempt($credentials)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'The provided credentials are invalid.'
+                'field' => 'password',
+                'message' => 'Incorrect password'
             ], 401);
         }
 
-        // Regenerate session to avoid fixation
         $request->session()->regenerate();
 
         return response()->json([
@@ -90,7 +92,13 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user) {
-            return response()->json(['status' => 'error', 'message' => 'No user found with this email'], 400);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No user found with this email',
+                'errors' => [
+                    'email' => ["The provided email address doesn't exist."]
+                ]
+            ],400);
         }
 
         $token = Password::broker()->createToken($user);
@@ -131,5 +139,40 @@ class AuthController extends Controller
 
         return response()->json(['status' => 'error', 'message' => __($status)], 400);
     }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = auth()->user();
+
+        $data = $request->only([
+            'name','email','title','phone','bio','location'
+        ]);
+
+        // Password
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        // Avatar upload
+        if ($request->hasFile('avatar')) {
+
+
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $data['avatar'] = $path;
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Profile updated successfully',
+            'user' => new UserResource($user),
+        ]);
+    }
+
 
 }
