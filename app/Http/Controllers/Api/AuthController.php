@@ -174,5 +174,20 @@ class AuthController extends Controller
         ]);
     }
 
+    public function removeAvatar(): JsonResponse
+    {
+        $user = auth()->user();
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        $user->avatar = null;
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Avatar removed successfully',
+            'user' => new UserResource($user)
+        ]);
+    }
 
 }
