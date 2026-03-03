@@ -50,10 +50,21 @@ class AuthController extends Controller {
 
         if (! Auth::attempt($credentials)) {
             return response()->json([
-                'status' => 'error',
-                'field' => 'password',
-                'message' => 'Incorrect password'
+                'status'  => 'error',
+                'field'   => 'password',
+                'message' => 'Incorrect password',
             ], 401);
+        }
+
+        // ── Block inactive users immediately after credential check ──
+        if (! Auth::user()->is_active) {
+            Auth::logout();
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 'account_deactivated',
+                'field'   => 'email',
+                'message' => 'Your account has been deactivated. Please contact your administrator.',
+            ], 403);
         }
 
         $request->session()->regenerate();
@@ -61,11 +72,12 @@ class AuthController extends Controller {
         $user = Auth::user()->load('roles.capabilities');
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Login successful',
-            'user' => new UserResource($user),
+            'user'    => new UserResource($user),
         ]);
     }
+
     public function user(Request $request): JsonResponse {
 
         $user = $request->user()->load('roles.capabilities');
