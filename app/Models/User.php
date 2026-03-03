@@ -37,7 +37,7 @@ class User extends Authenticatable {
         return $this->belongsToMany(Role::class);
     }
 
-    public function preferences() {
+    public function preference() {
         return $this->hasOne(UserPreference::class);
     }
 
