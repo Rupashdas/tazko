@@ -99,6 +99,15 @@ class UserController extends Controller implements HasMiddleware {
             'role_id' => 'required|integer|exists:roles,id',
         ]);
 
+        // Prevent assigning super-admin role
+        $role = Role::find($validated['role_id']);
+        if ($role->name === 'super-admin') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Super-admin role cannot be assigned.',
+            ], 403);
+        }
+
         $user->roles()->sync([$validated['role_id']]);
         $user->load('roles.capabilities');
 

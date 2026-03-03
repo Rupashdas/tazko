@@ -18,6 +18,7 @@ class UserResource extends JsonResource {
             'phone'      => $this->phone,
             'bio'        => $this->bio,
             'location'   => $this->location,
+            'created_at' => $this->created_at,
 
             /*
              * Roles with their capabilities — needed by the frontend
