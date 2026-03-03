@@ -29,6 +29,7 @@ class AuthController extends Controller {
             'password' => Hash::make($request->password),
         ]);
 
+        $user->preference()->create([]);
         Auth::login($user);
 
         // Regenerate session to prevent fixation
