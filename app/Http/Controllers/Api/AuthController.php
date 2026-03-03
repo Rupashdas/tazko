@@ -20,10 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 
-class AuthController extends Controller
-{
-    public function register(RegisterRequest $request): JsonResponse
-    {
+class AuthController extends Controller {
+    public function register(RegisterRequest $request): JsonResponse {
 
         $user = User::create([
             'name' => $request->name,
@@ -43,8 +41,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(LoginRequest $request): JsonResponse
-    {
+    public function login(LoginRequest $request): JsonResponse {
 
         $credentials = $request->only('email', 'password');
 
@@ -64,16 +61,15 @@ class AuthController extends Controller
             'user' => new UserResource(Auth::user()),
         ]);
     }
-    public function user(Request $request): JsonResponse
-    {
-        $user = auth()->user();
+    public function user(Request $request): JsonResponse {
+        // Eager-load roles AND their capabilities
+        $user = $request->user()->load('roles.capabilities');
 
         return response()->json([
-            'user' => $user ? new UserResource($user) : null
+            'user' => new UserResource($user),
         ]);
     }
-    public function logout(Request $request): JsonResponse
-    {
+    public function logout(Request $request): JsonResponse {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -85,8 +81,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function sendResetLinkEmail(Request $request): JsonResponse
-    {
+    public function sendResetLinkEmail(Request $request): JsonResponse {
         $request->validate(['email' => 'required|email']);
 
         $user = User::where('email', $request->email)->first();
@@ -98,7 +93,7 @@ class AuthController extends Controller
                 'errors' => [
                     'email' => ["The provided email address doesn't exist."]
                 ]
-            ],400);
+            ], 400);
         }
 
         $token = Password::broker()->createToken($user);
@@ -108,12 +103,11 @@ class AuthController extends Controller
 
         Mail::to($user->email)->send(new ResetPasswordMail($link));
 
-        return response()->json(['status' => 'success', 'message' => 'Your password reset link was sent to your email'], 200 );
+        return response()->json(['status' => 'success', 'message' => 'Your password reset link was sent to your email'], 200);
     }
 
     // Handle resetting the user's password
-    public function resetPassword(Request $request): JsonResponse
-    {
+    public function resetPassword(Request $request): JsonResponse {
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
@@ -140,42 +134,39 @@ class AuthController extends Controller
         return response()->json(['status' => 'error', 'message' => __($status)], 400);
     }
 
-    public function updateProfile(UpdateProfileRequest $request): JsonResponse
-    {
+    /**
+     * Also update updateProfile() to return roles.capabilities:
+     */
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse {
         $user = auth()->user();
 
-        $data = $request->only([
-            'name','email','title','phone','bio','location'
-        ]);
+        $data = $request->only(['name', 'email', 'title', 'phone', 'bio', 'location']);
 
-        // Password
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
 
-        // Avatar upload
         if ($request->hasFile('avatar')) {
-
-
             if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
                 Storage::disk('public')->delete($user->avatar);
             }
-
             $path = $request->file('avatar')->store('avatars', 'public');
             $data['avatar'] = $path;
         }
 
         $user->update($data);
 
+        // Reload with roles.capabilities for updated resource
+        $user->load('roles.capabilities');
+
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Profile updated successfully',
-            'user' => new UserResource($user),
+            'user'    => new UserResource($user),
         ]);
     }
 
-    public function removeAvatar(): JsonResponse
-    {
+    public function removeAvatar(): JsonResponse {
         $user = auth()->user();
         if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
             Storage::disk('public')->delete($user->avatar);
@@ -189,5 +180,4 @@ class AuthController extends Controller
             'user' => new UserResource($user)
         ]);
     }
-
 }
