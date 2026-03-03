@@ -12,7 +12,6 @@ class RequiresCapability {
      *
      * Usage in routes:
      *   ->middleware('capability:settings.view')
-     *   ->middleware('capability:settings.roles.manage')
      */
     public function handle(Request $request, Closure $next, string ...$capabilities): Response {
         $user = $request->user();
