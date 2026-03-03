@@ -8,11 +8,15 @@ use App\Http\Resources\RoleResource;
 use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class RoleController extends Controller {
-	public function __construct() {
-		$this->middleware('capability:settings.roles.view')->only(['index', 'show']);
-		$this->middleware('capability:settings.roles.manage')->only(['store', 'update', 'destroy']);
+class RoleController extends Controller implements HasMiddleware {
+	public static function middleware(): array {
+		return [
+			new Middleware('capability:settings.roles.view', only: ['index', 'show']),
+			new Middleware('capability:settings.roles.manage', only: ['store', 'update', 'destroy']),
+		];
 	}
 
 	/**
