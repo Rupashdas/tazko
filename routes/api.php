@@ -6,12 +6,17 @@ use App\Http\Controllers\Api\UserPreferenceController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\CapabilityController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\InvitationController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
 Route::post('/register',        [AuthController::class, 'register']);
 Route::post('/login',           [AuthController::class, 'login']);
 Route::post('/password/email',  [AuthController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset',  [AuthController::class, 'resetPassword']);
+
+// Invitation accept (public — no auth needed)
+Route::get('/invitations/{token}',        [InvitationController::class, 'show']);
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
 // ── Authenticated ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -29,10 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── System Settings ────────────────────────────────────────────────────
     Route::get('/capabilities', [CapabilityController::class, 'index']);
-
     Route::apiResource('roles', RoleController::class);
 
     // ── Users Management ───────────────────────────────────────────────────
     Route::apiResource('users', UserController::class)->except(['show']);
     Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
+
+    // ── Invitations ────────────────────────────────────────────────────────
+    Route::post('/invitations',                        [InvitationController::class, 'store']);
+    Route::post('/invitations/{invitation}/resend',    [InvitationController::class, 'resend']);
+    Route::delete('/invitations/{invitation}',         [InvitationController::class, 'destroy']);
 });
