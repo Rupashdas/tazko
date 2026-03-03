@@ -18,6 +18,7 @@ class User extends Authenticatable {
         'phone',
         'bio',
         'location',
+        'is_active',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -26,6 +27,7 @@ class User extends Authenticatable {
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
+            'is_active'         => 'boolean',
         ];
     }
 
@@ -43,33 +45,18 @@ class User extends Authenticatable {
 
     /*---------------------------------------------------------------------------
     | Permission helpers
-    | These are used by RequiresCapability middleware.
     ---------------------------------------------------------------------------*/
 
-    /**
-     * Returns true if the user has the super-admin role.
-     * Super-admins bypass ALL capability checks.
-     */
     public function isSuperAdmin(): bool {
-        // Use loaded relation if available (avoids extra query)
         if ($this->relationLoaded('roles')) {
             return $this->roles->contains('name', 'super-admin');
         }
-
         return $this->roles()->where('name', 'super-admin')->exists();
     }
 
-    /**
-     * Check if the user has a specific capability via any of their roles.
-     *
-     * Usage: $user->hasCapability('settings.roles.manage')
-     */
     public function hasCapability(string $name): bool {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
+        if ($this->isSuperAdmin()) return true;
 
-        // If roles+capabilities are already loaded, use the collection (no extra query)
         if ($this->relationLoaded('roles')) {
             return $this->roles->contains(
                 fn($role) => $role->relationLoaded('capabilities')
@@ -83,13 +70,8 @@ class User extends Authenticatable {
             ->exists();
     }
 
-    /**
-     * Check if the user has ANY of the given capabilities.
-     */
     public function hasAnyCapability(array $names): bool {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
+        if ($this->isSuperAdmin()) return true;
 
         return $this->roles()
             ->whereHas('capabilities', fn($q) => $q->whereIn('name', $names))

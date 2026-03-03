@@ -16,11 +16,13 @@ use Illuminate\Support\Str;
 class UserController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
-            new Middleware('capability:users.view',        only: ['index']),
-            new Middleware('capability:users.create',      only: ['store']),
-            new Middleware('capability:users.update',      only: ['update']),
-            new Middleware('capability:users.delete',      only: ['destroy']),
-            new Middleware('capability:users.role.assign', only: ['assignRole']),
+            new Middleware('capability:users.view',         only: ['index']),
+            new Middleware('capability:users.profile.view', only: ['show']),
+            new Middleware('capability:users.create',       only: ['store']),
+            new Middleware('capability:users.update',       only: ['update']),
+            new Middleware('capability:users.delete',       only: ['destroy']),
+            new Middleware('capability:users.activate',     only: ['toggleActive']),
+            new Middleware('capability:users.role.assign',  only: ['assignRole']),
         ];
     }
 
@@ -38,7 +40,19 @@ class UserController extends Controller implements HasMiddleware {
     }
 
     /**
-     * POST /api/users  — invite / create user
+     * GET /api/users/{user}
+     * Requires: users.profile.view
+     */
+    public function show(User $user): JsonResponse {
+        $user->load('roles.capabilities');
+
+        return response()->json([
+            'data' => new UserResource($user),
+        ]);
+    }
+
+    /**
+     * POST /api/users
      */
     public function store(Request $request): JsonResponse {
         $validated = $request->validate([
@@ -50,9 +64,10 @@ class UserController extends Controller implements HasMiddleware {
         $tempPassword = Str::random(12);
 
         $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'password' => Hash::make($tempPassword),
+            'name'      => $validated['name'],
+            'email'     => $validated['email'],
+            'password'  => Hash::make($tempPassword),
+            'is_active' => true,
         ]);
 
         $user->preference()->create([]);
@@ -63,8 +78,6 @@ class UserController extends Controller implements HasMiddleware {
 
         $user->load('roles.capabilities');
 
-        // TODO: send invite email with $tempPassword
-
         return response()->json([
             'status'  => 'success',
             'message' => 'User invited successfully.',
@@ -73,7 +86,8 @@ class UserController extends Controller implements HasMiddleware {
     }
 
     /**
-     * PUT /api/users/{user}  — update name / email
+     * PUT /api/users/{user}
+     * Requires: users.update
      */
     public function update(Request $request, User $user): JsonResponse {
         $validated = $request->validate([
@@ -92,21 +106,46 @@ class UserController extends Controller implements HasMiddleware {
     }
 
     /**
+     * PATCH /api/users/{user}/active
+     * Requires: users.activate
+     */
+    public function toggleActive(User $user): JsonResponse {
+        // Prevent deactivating yourself
+        if ($user->id === auth()->id()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'You cannot deactivate your own account.',
+            ], 403);
+        }
+
+        // Prevent deactivating super-admin
+        if ($user->isSuperAdmin()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Super-admin account cannot be deactivated.',
+            ], 403);
+        }
+
+        $user->update(['is_active' => !$user->is_active]);
+        $user->load('roles.capabilities');
+
+        $status = $user->is_active ? 'activated' : 'deactivated';
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => "User {$status} successfully.",
+            'data'    => new UserResource($user),
+        ]);
+    }
+
+    /**
      * PATCH /api/users/{user}/role
+     * Requires: users.role.assign
      */
     public function assignRole(Request $request, User $user): JsonResponse {
         $validated = $request->validate([
             'role_id' => 'required|integer|exists:roles,id',
         ]);
-
-        // Prevent assigning super-admin role
-        $role = Role::find($validated['role_id']);
-        if ($role->name === 'super-admin') {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Super-admin role cannot be assigned.',
-            ], 403);
-        }
 
         $user->roles()->sync([$validated['role_id']]);
         $user->load('roles.capabilities');
@@ -120,9 +159,9 @@ class UserController extends Controller implements HasMiddleware {
 
     /**
      * DELETE /api/users/{user}
+     * Requires: users.delete
      */
     public function destroy(User $user): JsonResponse {
-        // Prevent deleting yourself
         if ($user->id === auth()->id()) {
             return response()->json([
                 'status'  => 'error',
@@ -130,7 +169,6 @@ class UserController extends Controller implements HasMiddleware {
             ], 403);
         }
 
-        // Prevent deleting super-admin
         if ($user->isSuperAdmin()) {
             return response()->json([
                 'status'  => 'error',

@@ -145,9 +145,17 @@ class AuthController extends Controller {
     public function updateProfile(UpdateProfileRequest $request): JsonResponse {
         $user = auth()->user();
 
+        // Only non-password fields are always allowed (guarded by users.profile.update above)
         $data = $request->only(['name', 'email', 'title', 'phone', 'bio', 'location']);
 
+        // Password change requires an extra capability check
         if ($request->filled('password')) {
+            if (!$user->hasCapability('users.password.change')) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'You do not have permission to change your password.',
+                ], 403);
+            }
             $data['password'] = Hash::make($request->password);
         }
 
@@ -160,8 +168,6 @@ class AuthController extends Controller {
         }
 
         $user->update($data);
-
-        // Reload with roles.capabilities for updated resource
         $user->load('roles.capabilities');
 
         return response()->json([

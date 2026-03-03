@@ -14,14 +14,13 @@ Route::post('/login',           [AuthController::class, 'login']);
 Route::post('/password/email',  [AuthController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset',  [AuthController::class, 'resetPassword']);
 
-// Invitation accept (public — no auth needed)
-Route::get('/invitations/{token}',        [InvitationController::class, 'show']);
+Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
 // ── Authenticated ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Auth & profile
+    // Auth & own profile
     Route::get('/user',           [AuthController::class, 'user']);
     Route::post('/logout',        [AuthController::class, 'logout']);
     Route::post('/user',          [AuthController::class, 'updateProfile']);
@@ -37,8 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('roles', RoleController::class);
 
     // ── Users Management ───────────────────────────────────────────────────
-    Route::apiResource('users', UserController::class)->except(['show']);
-    Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
+    // show() is now included — guarded by users.profile.view
+    Route::apiResource('users', UserController::class);
+    Route::patch('/users/{user}/role',   [UserController::class, 'assignRole']);
+    Route::patch('/users/{user}/active', [UserController::class, 'toggleActive']);
 
     // ── Invitations ────────────────────────────────────────────────────────
     Route::post('/invitations',                        [InvitationController::class, 'store']);
