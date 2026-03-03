@@ -5,18 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class UserPreferenceController extends Controller
-{
-    public function show()
-    {
+class UserPreferenceController extends Controller {
+    public function show() {
         $user = auth()->user();
         return response()->json([
             'preference' => $user->preference
         ]);
     }
 
-    public function store(Request $request)
-    {
+    public function store(Request $request) {
         $isPalette = $request->has('palette');
         $isAppearance = $request->has('appearance');
         $isDateTime = $request->has('timezone') || $request->has('week_start') || $request->has('time_format');
@@ -39,7 +36,7 @@ class UserPreferenceController extends Controller
 
         $validated = $request->validate($rules);
 
-        $preference = $request->user()->preference()->updateOrCreate(
+        $request->user()->preference()->updateOrCreate(
             ['user_id' => $request->user()->id],
             $validated
         );
