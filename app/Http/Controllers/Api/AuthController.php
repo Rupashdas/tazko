@@ -185,4 +185,28 @@ class AuthController extends Controller {
             'user' => new UserResource($user)
         ]);
     }
+
+    public function uploadAvatar(Request $request): JsonResponse {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        $user = auth()->user();
+
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $user->avatar = $path;
+        $user->save();
+
+        $user->load('roles.capabilities');
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Avatar updated successfully',
+            'user'    => new UserResource($user),
+        ]);
+    }
 }

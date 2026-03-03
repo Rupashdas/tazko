@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',        [AuthController::class, 'logout']);
     Route::post('/user',          [AuthController::class, 'updateProfile']);
     Route::post('/remove-avatar', [AuthController::class, 'removeAvatar']);
+    Route::post('/upload-avatar', [AuthController::class, 'uploadAvatar']);
 
     // Preferences
     Route::get('/preferences',  [UserPreferenceController::class, 'show']);
