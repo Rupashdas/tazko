@@ -37,7 +37,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::patch('/users/{user}/role',   [UserController::class, 'assignRole']);
     Route::patch('/users/{user}/active', [UserController::class, 'toggleActive']);
 
-    Route::post('/invitations',                        [InvitationController::class, 'store']);
-    Route::post('/invitations/{invitation}/resend',    [InvitationController::class, 'resend']);
-    Route::delete('/invitations/{invitation}',         [InvitationController::class, 'destroy']);
+    Route::post('/invitations',                         [InvitationController::class, 'store']);
+    Route::get('/invitations',                          [InvitationController::class, 'index']);
+    Route::post('/invitations/{invitation}/resend',     [InvitationController::class, 'resend']);
+    Route::delete('/invitations/{invitation}',          [InvitationController::class, 'destroy']);
 });

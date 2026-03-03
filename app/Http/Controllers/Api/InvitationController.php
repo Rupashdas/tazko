@@ -19,7 +19,24 @@ class InvitationController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('capability:users.create', only: ['store', 'resend']),
+            new Middleware('capability:users.view', only: ['index'])
         ];
+    }
+
+    /**
+     * GET /api/invitations
+     * List all non-accepted invitations (pending + expired).
+     */
+    public function index(): JsonResponse {
+        $invitations = Invitation::with('role', 'invitedBy')
+            ->whereNull('accepted_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $invitations->map(fn($inv) => $this->formatInvitation($inv)),
+        ]);
     }
 
     /**
