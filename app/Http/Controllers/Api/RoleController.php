@@ -14,8 +14,8 @@ use Illuminate\Routing\Controllers\Middleware;
 class RoleController extends Controller implements HasMiddleware {
 	public static function middleware(): array {
 		return [
-			new Middleware('capability:settings.roles.view', only: ['index', 'show']),
-			new Middleware('capability:settings.roles.manage', only: ['store', 'update', 'destroy']),
+			new Middleware('capability:roles.view', only: ['index', 'show']),
+			new Middleware('capability:roles.manage', only: ['store', 'update', 'destroy']),
 		];
 	}
 

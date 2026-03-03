@@ -35,6 +35,8 @@ class AuthController extends Controller {
         // Regenerate session to prevent fixation
         $request->session()->regenerate();
 
+        $user->load('roles.capabilities');
+
         return response()->json([
             'status' => 'success',
             'message' => 'User registered successfully',
@@ -56,14 +58,16 @@ class AuthController extends Controller {
 
         $request->session()->regenerate();
 
+        $user = Auth::user()->load('roles.capabilities');
+
         return response()->json([
             'status' => 'success',
             'message' => 'Login successful',
-            'user' => new UserResource(Auth::user()),
+            'user' => new UserResource($user),
         ]);
     }
     public function user(Request $request): JsonResponse {
-        // Eager-load roles AND their capabilities
+
         $user = $request->user()->load('roles.capabilities');
 
         return response()->json([
