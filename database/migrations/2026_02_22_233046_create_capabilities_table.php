@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('capabilities', function (Blueprint $table) {
             $table->id();
+            $table->string('name')->unique();
+            $table->string('label');
+            $table->string('module')->index();
             $table->timestamps();
         });
     }
