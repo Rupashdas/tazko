@@ -44,7 +44,7 @@ class SuperAdminSeeder extends Seeder {
         $user->roles()->syncWithoutDetaching([$role->id]);
 
         // 5. Create default user preferences if not already exists
-        $user->preferences()->firstOrCreate(
+        $user->preference()->firstOrCreate(
             ['user_id' => $user->id],
             [
                 'palette'     => 'ember',
@@ -55,6 +55,6 @@ class SuperAdminSeeder extends Seeder {
             ]
         );
 
-        $this->command->info('✅ Super Admin user → admin@example.com / password1234');
+        $this->command->info('✅ Super Admin user → admin@example.com / Pass123# created and assigned the super-admin role.');
     }
 }
