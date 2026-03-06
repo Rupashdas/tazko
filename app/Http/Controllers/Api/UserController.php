@@ -143,9 +143,25 @@ class UserController extends Controller implements HasMiddleware {
      * Requires: users.role.assign
      */
     public function assignRole(Request $request, User $user): JsonResponse {
+        
+        if ($user->isSuperAdmin()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Super-admin role cannot be changed.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'role_id' => 'required|integer|exists:roles,id',
         ]);
+
+        $targetRole = Role::findOrFail($validated['role_id']);
+        if ($targetRole->name === 'super-admin') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'The super-admin role cannot be assigned to any user.',
+            ], 403);
+        }
 
         $user->roles()->sync([$validated['role_id']]);
         $user->load('roles.capabilities');
