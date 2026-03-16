@@ -196,6 +196,7 @@ class AuthController extends Controller {
         }
         $user->avatar = null;
         $user->save();
+        $user->load('roles.capabilities');
 
         return response()->json([
             'status' => 'success',
