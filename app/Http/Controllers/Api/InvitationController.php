@@ -207,7 +207,10 @@ class InvitationController extends Controller implements HasMiddleware {
             'name'       => $inv->name,
             'email'      => $inv->email,
             'role'       => $inv->role ? ['id' => $inv->role->id, 'label' => $inv->role->label] : null,
-            'invited_by' => $inv->invitedBy->name,
+            'invited_by' => [
+                'name' => $inv->invitedBy->name,
+                'avatar' =>  asset('storage/' . $inv->invitedBy->avatar)
+            ],
             'status'     => $inv->status,
             'expires_at' => $inv->expires_at,
             'created_at' => $inv->created_at,
