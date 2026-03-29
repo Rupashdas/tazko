@@ -44,16 +44,14 @@ class InvitationController extends Controller implements HasMiddleware {
      * Send an invitation email.
      */
     public function store(Request $request): JsonResponse {
-        $validated = $request->validate([
+         $validated = $request->validate([
             'name'    => 'required|string|max:255',
-            'email'   => 'required|email|unique:users,email|unique:invitations,email',
+            'email'   => 'required|email|unique:users,email',
             'role_id' => 'nullable|integer|exists:roles,id',
         ]);
 
         // Cancel any previous pending invite for this email
-        Invitation::where('email', $validated['email'])
-            ->whereNull('accepted_at')
-            ->delete();
+        Invitation::where('email', $validated['email'])->delete();
 
         $invitation = Invitation::create([
             'name'       => $validated['name'],
