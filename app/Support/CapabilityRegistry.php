@@ -79,16 +79,6 @@ class CapabilityRegistry {
 
 			/*
 			|--------------------------------------------------------------------------
-			| Kanban
-			|--------------------------------------------------------------------------
-			*/
-			'kanban' => [
-				['name' => 'kanban.view', 'label' => 'View Kanban Board'],
-				['name' => 'kanban.column.manage', 'label' => 'Manage Columns'],
-			],
-
-			/*
-			|--------------------------------------------------------------------------
 			| Comments & Collaboration
 			|--------------------------------------------------------------------------
 			*/
@@ -196,7 +186,6 @@ class CapabilityRegistry {
 				['name' => 'settings.view', 'label' => 'View Settings'],
 				['name' => 'settings.update', 'label' => 'Update Settings'],
 				['name' => 'settings.branding.manage', 'label' => 'Manage Branding'],
-				['name' => 'settings.status.manage', 'label' => 'Manage Task Status'],
 				['name' => 'settings.email.manage', 'label' => 'Manage Email Settings'],
 				['name' => 'settings.language.manage', 'label' => 'Manage Language'],
 			],
