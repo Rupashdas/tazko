@@ -44,7 +44,7 @@ class InvitationController extends Controller implements HasMiddleware {
      * Send an invitation email.
      */
     public function store(Request $request): JsonResponse {
-         $validated = $request->validate([
+        $validated = $request->validate([
             'name'    => 'required|string|max:255',
             'email'   => 'required|email|unique:users,email',
             'role_id' => 'nullable|integer|exists:roles,id',
@@ -207,7 +207,7 @@ class InvitationController extends Controller implements HasMiddleware {
             'role'       => $inv->role ? ['id' => $inv->role->id, 'label' => $inv->role->label] : null,
             'invited_by' => [
                 'name' => $inv->invitedBy->name,
-                'avatar' =>  asset('storage/' . $inv->invitedBy->avatar)
+                'avatar' => $inv->invitedBy->avatar ? asset('storage/' . $inv->invitedBy->avatar) : null,
             ],
             'status'     => $inv->status,
             'expires_at' => $inv->expires_at,
