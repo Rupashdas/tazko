@@ -13,7 +13,7 @@ use Illuminate\Routing\Controllers\Middleware;
 class ProjectController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
-            new Middleware('capability:projects.view',    only: ['index', 'archivedIndex', 'show']),
+            new Middleware('capability:projects.view',    only: ['index', 'show', 'archivedIndex']),
             new Middleware('capability:projects.create',  only: ['store']),
             new Middleware('capability:projects.update',  only: ['update']),
             new Middleware('capability:projects.delete',  only: ['destroy']),
@@ -88,6 +88,32 @@ class ProjectController extends Controller implements HasMiddleware {
                 'completed_count' => (int) ($aggregates->completed_count ?? 0),
                 'avg_progress'    => (int) ($aggregates->avg_progress ?? 0),
             ],
+        ]);
+    }
+
+    /**
+     * GET /api/projects/{project}
+     */
+    public function show(Request $request, Project $project): JsonResponse {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin()) {
+            $allowed = $project->created_by === $user->id
+                || $project->members()->where('user_id', $user->id)->exists();
+
+            if (! $allowed) {
+                return response()->json(['message' => 'You do not have access to this project.'], 403);
+            }
+        }
+
+        $project->load(['createdBy', 'members']);
+        $project->loadCount([
+            'tasks as tasks_total',
+            'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
+        ]);
+
+        return response()->json([
+            'data' => new ProjectResource($project),
         ]);
     }
 
