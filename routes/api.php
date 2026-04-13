@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CapabilityController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ProjectMemberController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
 Route::post('/register',        [AuthController::class, 'register']);
@@ -50,4 +51,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::patch('/projects/{project}/archive',   [ProjectController::class, 'archive']);
     Route::patch('/projects/{project}/restore',   [ProjectController::class, 'restore']);
     Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::post('/projects/{project}/members',           [ProjectMemberController::class, 'store']);
+    Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
 });
