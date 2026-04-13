@@ -18,6 +18,7 @@ class Project extends Model {
         'end_date',
         'progress',
         'is_archived',
+        'archived_at',
     ];
 
     protected function casts(): array {
@@ -25,6 +26,7 @@ class Project extends Model {
             'start_date'  => 'date',
             'end_date'    => 'date',
             'is_archived' => 'boolean',
+            'archived_at' => 'datetime',
             'progress'    => 'integer',
         ];
     }
@@ -37,9 +39,13 @@ class Project extends Model {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function tasks() {
+        return $this->hasMany(Task::class);
+    }
+
     public function members() {
         return $this->belongsToMany(User::class, 'project_members')
-                    ->withPivot('role')
-                    ->withTimestamps();
+            ->withPivot('role')
+            ->withTimestamps();
     }
 }

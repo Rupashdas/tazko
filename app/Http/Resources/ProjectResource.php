@@ -20,6 +20,10 @@ class ProjectResource extends JsonResource {
             'progress'    => $this->progress,
             'is_archived' => $this->is_archived,
             'created_at'  => $this->created_at,
+            'task_counts' => [
+                'total' => $this->tasks_total ?? 0,
+                'done'  => $this->tasks_done  ?? 0,
+            ],
 
             'created_by' => $this->whenLoaded('createdBy', fn() => [
                 'id'     => $this->createdBy->id,

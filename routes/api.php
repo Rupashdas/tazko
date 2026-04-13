@@ -38,10 +38,12 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::patch('/users/{user}/role',   [UserController::class, 'assignRole']);
     Route::patch('/users/{user}/active', [UserController::class, 'toggleActive']);
 
-    Route::get('/projects', [ProjectController::class, 'index']);
 
     Route::post('/invitations',                         [InvitationController::class, 'store']);
     Route::get('/invitations',                          [InvitationController::class, 'index']);
     Route::post('/invitations/{invitation}/resend',     [InvitationController::class, 'resend']);
     Route::delete('/invitations/{invitation}',          [InvitationController::class, 'destroy']);
+
+
+    Route::get('/projects', [ProjectController::class, 'index']);
 });
