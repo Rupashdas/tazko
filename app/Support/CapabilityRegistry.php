@@ -49,10 +49,7 @@ class CapabilityRegistry {
 				['name' => 'projects.delete', 'label' => 'Delete Project'],
 				['name' => 'projects.archive', 'label' => 'Archive Project'],
 				['name' => 'projects.restore', 'label' => 'Restore Archived Project'],
-				['name' => 'projects.status.update', 'label' => 'Update Project Status'],
-				['name' => 'projects.priority.update', 'label' => 'Update Project Priority'],
 				['name' => 'projects.members.manage', 'label' => 'Manage Project Members'],
-				['name' => 'projects.progress.update', 'label' => 'Update Project Progress'],
 			],
 
 			/*

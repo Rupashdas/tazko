@@ -45,5 +45,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::delete('/invitations/{invitation}',          [InvitationController::class, 'destroy']);
 
 
-    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::patch('/projects/{project}/archive', [ProjectController::class, 'archive']);
 });

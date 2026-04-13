@@ -13,7 +13,11 @@ use Illuminate\Routing\Controllers\Middleware;
 class ProjectController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
-            new Middleware('capability:projects.view', only: ['index']),
+            new Middleware('capability:projects.view',    only: ['index', 'show']),
+            new Middleware('capability:projects.create',  only: ['store']),
+            new Middleware('capability:projects.update',  only: ['update']),
+            new Middleware('capability:projects.delete',  only: ['destroy']),
+            new Middleware('capability:projects.archive', only: ['archive']),
         ];
     }
 
@@ -27,8 +31,7 @@ class ProjectController extends Controller implements HasMiddleware {
         // ── Role-based scoping ────────────────────────────────────────────────
         if (! $user->isSuperAdmin()) {
             $baseQuery->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
-                    ->orWhereHas('members', fn($m) => $m->where('user_id', $user->id));
+                $q->where('created_by', $user->id)->orWhereHas('members', fn($m) => $m->where('user_id', $user->id));
             });
         }
 
@@ -84,6 +87,96 @@ class ProjectController extends Controller implements HasMiddleware {
                 'completed_count' => (int) ($aggregates->completed_count ?? 0),
                 'avg_progress'    => (int) ($aggregates->avg_progress ?? 0),
             ],
+        ]);
+    }
+
+    /**
+     * POST /api/projects
+     */
+    public function store(Request $request): JsonResponse {
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'goal'        => 'nullable|string|max:500',
+            'status'      => 'nullable|in:Planning,In Progress,On Hold,Completed',
+            'priority'    => 'nullable|in:Low,Medium,High,Urgent',
+            'color'       => 'nullable|string|max:50',
+            'start_date'  => 'nullable|date',
+            'end_date'    => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $project = Project::create([
+            ...$validated,
+            'created_by' => $request->user()->id,
+            'progress'   => 0,
+        ]);
+
+        // Automatically add the creator as a project member with role 'owner'
+        $project->members()->attach($request->user()->id, ['role' => 'owner']);
+
+        $project->load(['createdBy', 'members']);
+        $project->loadCount([
+            'tasks as tasks_total',
+            'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
+        ]);
+
+        return response()->json([
+            'data'    => new ProjectResource($project),
+            'message' => 'Project created successfully.',
+        ], 201);
+    }
+
+    /**
+     * PUT /api/projects/{project}
+     */
+    public function update(Request $request, Project $project): JsonResponse {
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'goal'        => 'nullable|string|max:500',
+            'status'      => 'nullable|in:Planning,In Progress,On Hold,Completed',
+            'priority'    => 'nullable|in:Low,Medium,High,Urgent',
+            'color'       => 'nullable|string|max:50',
+            'start_date'  => 'nullable|date',
+            'end_date'    => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $project->update($validated);
+
+        $project->load(['createdBy', 'members']);
+        $project->loadCount([
+            'tasks as tasks_total',
+            'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
+        ]);
+
+        return response()->json([
+            'data'    => new ProjectResource($project),
+            'message' => 'Project updated successfully.',
+        ]);
+    }
+
+    /**
+     * DELETE /api/projects/{project}
+     */
+    public function destroy(Project $project): JsonResponse {
+        $project->delete();
+
+        return response()->json([
+            'message' => 'Project deleted successfully.',
+        ]);
+    }
+
+    /**
+     * PATCH /api/projects/{project}/archive
+     */
+    public function archive(Project $project): JsonResponse {
+        $project->update([
+            'is_archived' => true,
+            'archived_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Project archived successfully.',
         ]);
     }
 }
