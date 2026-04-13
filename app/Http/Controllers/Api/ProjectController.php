@@ -13,11 +13,12 @@ use Illuminate\Routing\Controllers\Middleware;
 class ProjectController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
-            new Middleware('capability:projects.view',    only: ['index', 'show']),
+            new Middleware('capability:projects.view',    only: ['index', 'archivedIndex', 'show']),
             new Middleware('capability:projects.create',  only: ['store']),
             new Middleware('capability:projects.update',  only: ['update']),
             new Middleware('capability:projects.delete',  only: ['destroy']),
             new Middleware('capability:projects.archive', only: ['archive']),
+            new Middleware('capability:projects.restore', only: ['restore']),
         ];
     }
 
@@ -177,6 +178,71 @@ class ProjectController extends Controller implements HasMiddleware {
 
         return response()->json([
             'message' => 'Project archived successfully.',
+        ]);
+    }
+
+    /**
+     * GET /api/projects/archived
+     */
+    public function archivedIndex(Request $request): JsonResponse {
+        $user = $request->user();
+
+        $query = Project::query()->where('is_archived', true);
+
+        if (! $user->isSuperAdmin()) {
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                    ->orWhereHas('members', fn($m) => $m->where('user_id', $user->id));
+            });
+        }
+
+        if ($search = $request->string('search')->trim()->value()) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Stat counts
+        $total      = (clone $query)->count();
+        $completed  = (clone $query)->where('status', 'Completed')->count();
+        $incomplete = $total - $completed;
+
+        $perPage  = (int) $request->input('per_page', 6);
+        $projects = $query
+            ->with(['createdBy', 'members'])
+            ->withCount([
+                'tasks as tasks_total',
+                'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
+            ])
+            ->orderBy('archived_at', 'desc')
+            ->paginate($perPage);
+
+        return response()->json([
+            'data' => ProjectResource::collection($projects),
+            'meta' => [
+                'current_page' => $projects->currentPage(),
+                'last_page'    => $projects->lastPage(),
+                'per_page'     => $projects->perPage(),
+                'total'        => $projects->total(),
+                'has_more'     => $projects->hasMorePages(),
+                'completed'    => $completed,
+                'incomplete'   => $incomplete,
+            ],
+        ]);
+    }
+
+    /**
+     * PATCH /api/projects/{project}/restore
+     */
+    public function restore(Project $project): JsonResponse {
+        $project->update([
+            'is_archived' => false,
+            'archived_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Project restored successfully.',
         ]);
     }
 }

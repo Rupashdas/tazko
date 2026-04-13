@@ -45,6 +45,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::delete('/invitations/{invitation}',          [InvitationController::class, 'destroy']);
 
 
+    // Static project routes MUST come before apiResource so {project} wildcard doesn't swallow them
+    Route::get('/projects/archived',              [ProjectController::class, 'archivedIndex']);
+    Route::patch('/projects/{project}/archive',   [ProjectController::class, 'archive']);
+    Route::patch('/projects/{project}/restore',   [ProjectController::class, 'restore']);
     Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::patch('/projects/{project}/archive', [ProjectController::class, 'archive']);
 });

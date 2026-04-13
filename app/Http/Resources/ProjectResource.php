@@ -19,6 +19,7 @@ class ProjectResource extends JsonResource {
             'end_date'    => $this->end_date?->toDateString(),
             'progress'    => $this->progress,
             'is_archived' => $this->is_archived,
+            'archived_at' => $this->archived_at?->toDateTimeString(),
             'created_at'  => $this->created_at,
             'task_counts' => [
                 'total' => $this->tasks_total ?? 0,
