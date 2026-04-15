@@ -10,10 +10,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Validation\Rule;
 
 class TaskController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
+            new Middleware('project.member'),
             new Middleware('capability:tasks.view',   only: ['index']),
             new Middleware('capability:tasks.create', only: ['store']),
             new Middleware('capability:tasks.update', only: ['update', 'reorder']),
@@ -47,7 +49,7 @@ class TaskController extends Controller implements HasMiddleware {
             'priority'       => 'nullable|in:Urgent,High,Medium,Low',
             'due_date'       => 'nullable|date',
             'assignee_ids'   => 'nullable|array',
-            'assignee_ids.*' => 'exists:users,id',
+            'assignee_ids.*' => Rule::exists('project_members', 'user_id')->where('project_id', $project->id),
         ]);
 
         $task = $project->tasks()->create([
@@ -75,7 +77,7 @@ class TaskController extends Controller implements HasMiddleware {
     public function reorder(Request $request, Project $project): JsonResponse {
         $request->validate([
             'tasks'              => 'required|array',
-            'tasks.*.id'         => 'required|exists:tasks,id',
+            'tasks.*.id'         => ['required', Rule::exists('tasks', 'id')->where('project_id', $project->id)],
             'tasks.*.sort_order' => 'required|integer',
             'tasks.*.status'     => 'sometimes|in:Todo,In Progress,Review,Done',
         ]);
@@ -104,7 +106,7 @@ class TaskController extends Controller implements HasMiddleware {
             'priority'       => 'sometimes|in:Urgent,High,Medium,Low',
             'due_date'       => 'sometimes|nullable|date',
             'assignee_ids'   => 'sometimes|nullable|array',
-            'assignee_ids.*' => 'exists:users,id',
+            'assignee_ids.*' => Rule::exists('project_members', 'user_id')->where('project_id', $project->id),
         ]);
 
         $task->update($request->only(['title', 'description', 'status', 'priority', 'due_date']));

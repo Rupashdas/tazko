@@ -15,6 +15,7 @@ class ProjectMemberController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
+            new Middleware('project.member'),
             new Middleware('capability:projects.members.manage', only: ['store', 'destroy']),
         ];
     }
@@ -55,7 +56,7 @@ class ProjectMemberController extends Controller implements HasMiddleware
             'role'   => $user->pivot->role,
         ]);
 
-        return response()->json(['members' => $members]);
+        return response()->json(['members' => $members], 201);
     }
 
     /**
@@ -63,6 +64,12 @@ class ProjectMemberController extends Controller implements HasMiddleware
      */
     public function destroy(Project $project, User $user): JsonResponse
     {
+        abort_if(
+            $project->created_by === $user->id,
+            403,
+            'The project owner cannot be removed from the project.'
+        );
+
         $project->members()->detach($user->id);
 
         return response()->json(['message' => 'Member removed successfully.']);

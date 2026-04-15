@@ -44,14 +44,11 @@ class Project extends Model {
     }
 
     public function members() {
-        return $this->belongsToMany(User::class, 'project_members')
-            ->withPivot('role')
-            ->withTimestamps();
+        return $this->belongsToMany(User::class, 'project_members')->withPivot('role')->withTimestamps();
     }
 
     public function comments() {
-        return $this->morphMany(Comment::class, 'commentable')
-            ->orderBy('created_at');
+        return $this->morphMany(Comment::class, 'commentable')->orderBy('created_at');
     }
 
     public function attachments() {

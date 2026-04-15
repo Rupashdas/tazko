@@ -18,8 +18,8 @@ class InvitationController extends Controller implements HasMiddleware {
 
     public static function middleware(): array {
         return [
-            new Middleware('capability:users.create', only: ['store', 'resend']),
-            new Middleware('capability:users.view', only: ['index'])
+            new Middleware('capability:users.create',  only: ['store', 'resend', 'destroy']),
+            new Middleware('capability:users.view',    only: ['index']),
         ];
     }
 

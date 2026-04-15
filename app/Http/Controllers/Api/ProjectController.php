@@ -13,6 +13,7 @@ use Illuminate\Routing\Controllers\Middleware;
 class ProjectController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
+            new Middleware('project.member',              only: ['update', 'destroy', 'archive', 'restore']),
             new Middleware('capability:projects.view',    only: ['index', 'show', 'archivedIndex']),
             new Middleware('capability:projects.create',  only: ['store']),
             new Middleware('capability:projects.update',  only: ['update']),

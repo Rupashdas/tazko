@@ -15,6 +15,7 @@ use Illuminate\Routing\Controllers\Middleware;
 class CommentController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
+            new Middleware('project.member'),
             new Middleware('capability:comments.view',   only: ['index']),
             new Middleware('capability:comments.create', only: ['store']),
             new Middleware('capability:comments.update', only: ['update']),
@@ -78,9 +79,10 @@ class CommentController extends Controller implements HasMiddleware {
             'is_edited' => true,
         ]);
 
-        $comment->loadMissing(['user', 'attachments']);
         $authId = auth()->id();
-        $comment->likes_count = $comment->likes()->count();
+
+        $comment->load(['user', 'attachments']);
+        $comment->loadCount('likes');
         $comment->liked_by_me = $comment->likes()->where('user_id', $authId)->exists();
 
         return response()->json(['data' => new CommentResource($comment)]);
@@ -92,11 +94,8 @@ class CommentController extends Controller implements HasMiddleware {
     public function destroy(Project $project, Comment $comment): JsonResponse {
         abort_if($comment->project_id !== $project->id, 404);
 
-        // Allow own comment deletion or if the user has delete capability (already gated by middleware)
-        if ($comment->user_id !== auth()->id()) {
-            // Only project owners/admins with the capability can delete others' comments
-            // The middleware already ensures `comments.delete` cap — allow it
-        }
+        $isOwn = $comment->user_id === auth()->id();
+        abort_if(! $isOwn && ! auth()->user()->isSuperAdmin(), 403, 'You can only delete your own comments.');
 
         $comment->delete();
 
@@ -120,9 +119,13 @@ class CommentController extends Controller implements HasMiddleware {
             $liked = true;
         }
 
+        $likesCount = $liked
+            ? ($comment->likes_count ?? 0) + 1
+            : max(0, ($comment->likes_count ?? 0) - 1);
+
         return response()->json([
             'liked'       => $liked,
-            'likes_count' => $comment->likes()->count(),
+            'likes_count' => $likesCount,
         ]);
     }
 }
