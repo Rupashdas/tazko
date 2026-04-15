@@ -48,4 +48,13 @@ class Project extends Model {
             ->withPivot('role')
             ->withTimestamps();
     }
+
+    public function comments() {
+        return $this->morphMany(Comment::class, 'commentable')
+            ->orderBy('created_at');
+    }
+
+    public function attachments() {
+        return $this->hasMany(Attachment::class);
+    }
 }

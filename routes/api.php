@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectMemberController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\CommentController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
 Route::post('/register',        [AuthController::class, 'register']);
@@ -53,4 +55,15 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::apiResource('projects', ProjectController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
     Route::post('/projects/{project}/members',           [ProjectMemberController::class, 'store']);
     Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
+    Route::get('/projects/{project}/tasks',                  [TaskController::class, 'index']);
+    Route::post('/projects/{project}/tasks',                 [TaskController::class, 'store']);
+    Route::post('/projects/{project}/tasks/reorder',         [TaskController::class, 'reorder']);
+    Route::patch('/projects/{project}/tasks/{task}',         [TaskController::class, 'update']);
+    Route::delete('/projects/{project}/tasks/{task}',        [TaskController::class, 'destroy']);
+
+    Route::get('/projects/{project}/comments',                          [CommentController::class, 'index']);
+    Route::post('/projects/{project}/comments',                         [CommentController::class, 'store']);
+    Route::patch('/projects/{project}/comments/{comment}',              [CommentController::class, 'update']);
+    Route::delete('/projects/{project}/comments/{comment}',             [CommentController::class, 'destroy']);
+    Route::post('/projects/{project}/comments/{comment}/like',          [CommentController::class, 'toggleLike']);
 });
