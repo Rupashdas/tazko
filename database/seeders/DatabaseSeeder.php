@@ -14,9 +14,11 @@ class DatabaseSeeder extends Seeder {
      */
     public function run(): void {
         $this->call([
-            CapabilitySeeder::class,
-            SuperAdminSeeder::class,
-            RoleSeeder::class,
+            CapabilitySeeder::class, // Seed capabilities first
+            RoleSeeder::class,        // Seed roles (Admin, Developer)
+            SuperAdminSeeder::class,  // Seed Super Admin user with all capabilities
+            UserSeeder::class,        // Seed Admin and Developer users with roles
+            ProjectSeeder::class,     // Seed projects with tasks, labels, subtasks
         ]);
     }
 }
