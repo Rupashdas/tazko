@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Concerns\HasRteAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Comment extends Model {
+
+    use HasRteAttachments;
 
     protected $fillable = [
         'project_id',
@@ -20,6 +23,11 @@ class Comment extends Model {
             'is_edited' => 'boolean',
         ];
     }
+
+    // RTE fields whose attachment ids are auto-synced by HasRteAttachments.
+    // attachmentProjectId() is inherited (reads project_id).
+    // Public because the trait reads it from outside class scope.
+    public array $rteFields = ['body'];
 
     /*---------------------------------------------------------------------------
     | Relationships
@@ -41,7 +49,5 @@ class Comment extends Model {
         return $this->hasMany(CommentLike::class);
     }
 
-    public function attachments() {
-        return $this->morphMany(Attachment::class, 'attachable');
-    }
+    // attachments() is inherited from HasRteAttachments as a morphMany.
 }

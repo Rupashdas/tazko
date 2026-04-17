@@ -29,8 +29,11 @@ class CommentResource extends JsonResource {
                 $this->attachments->map(fn($a) => [
                     'id'        => $a->id,
                     'name'      => $a->name,
-                    'url'       => asset('storage/' . $a->path),
+                    // Route-based URL so per-request ACL runs. Files live
+                    // on the private disk; direct /storage/... won't work.
+                    'url'       => route('attachments.stream', ['attachment' => $a->id]),
                     'mime_type' => $a->mime_type,
+                    'file_type' => $a->file_type,
                     'size'      => $a->size,
                 ])
             ),

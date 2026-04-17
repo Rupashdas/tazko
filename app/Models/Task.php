@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Concerns\HasRteAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model {
+
+    use HasRteAttachments;
 
     protected $fillable = [
         'project_id',
@@ -23,6 +26,11 @@ class Task extends Model {
             'sort_order' => 'integer',
         ];
     }
+
+    // RTE fields whose attachment ids are auto-synced by HasRteAttachments.
+    // attachmentProjectId() is inherited from the trait (reads project_id).
+    // Public because the trait reads it from outside class scope.
+    public array $rteFields = ['description'];
 
     /*---------------------------------------------------------------------------
     | Relationships

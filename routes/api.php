@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectMemberController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\AttachmentController;
+use App\Http\Controllers\Api\AttachmentShareController;
+use App\Http\Controllers\Api\PublicShareController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
 Route::post('/register',        [AuthController::class, 'register']);
@@ -20,6 +23,12 @@ Route::post('/password/reset',  [AuthController::class, 'resetPassword']);
 
 Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
+
+// Public attachment share links. No auth — access is gated by token
+// validity (enabled + not expired) inside the controller. URL shape:
+//   GET /api/share/{token}             → stream inline
+//   GET /api/share/{token}?download=1  → stream as attachment (if allow_download)
+Route::get('/share/{token}', [PublicShareController::class, 'show'])->name('share.show');
 
 // ── Authenticated ─────────────────────────────────────────────────────────────
 // 'active' middleware ensures inactive users are kicked out on every request
@@ -66,4 +75,25 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::patch('/projects/{project}/comments/{comment}',              [CommentController::class, 'update']);
     Route::delete('/projects/{project}/comments/{comment}',             [CommentController::class, 'destroy']);
     Route::post('/projects/{project}/comments/{comment}/like',          [CommentController::class, 'toggleLike']);
+
+    // ── Attachments ──────────────────────────────────────────────────────────
+    // Files-tab + upload endpoints sit under their owning project.
+    Route::post('/projects/{project}/attachments', [AttachmentController::class, 'store'])
+        ->middleware('can:upload-attachment,project');
+    Route::get('/projects/{project}/attachments',  [AttachmentController::class, 'index']);
+
+    // Per-attachment routes. Access control runs inside the controller via
+    // $this->authorize(...) so we can return tailored 403 messages.
+    Route::get('/attachments/{attachment}/stream', [AttachmentController::class, 'stream'])
+        ->name('attachments.stream');
+    Route::delete('/attachments/{attachment}',     [AttachmentController::class, 'destroy']);
+
+    // ── Attachment shares ────────────────────────────────────────────────────
+    // Create + list nested under the parent attachment.
+    Route::post('/attachments/{attachment}/shares', [AttachmentShareController::class, 'store']);
+    Route::get('/attachments/{attachment}/shares',  [AttachmentShareController::class, 'index']);
+
+    // Mutate / revoke specific share rows at the top level.
+    Route::patch('/attachment-shares/{share}',  [AttachmentShareController::class, 'update']);
+    Route::delete('/attachment-shares/{share}', [AttachmentShareController::class, 'destroy']);
 });

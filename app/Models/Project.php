@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Concerns\HasRteAttachments;
 use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model {
+
+    use HasRteAttachments;
 
     protected $fillable = [
         'created_by',
@@ -31,6 +34,16 @@ class Project extends Model {
         ];
     }
 
+    // RTE fields whose attachment ids are auto-synced by HasRteAttachments.
+    // Public because the trait reads it from outside class scope.
+    public array $rteFields = ['description'];
+
+    // Project IS the tenancy anchor — no `project_id` column, so override
+    // the trait's default to return our own id.
+    public function attachmentProjectId(): int {
+        return (int) $this->id;
+    }
+
     /*---------------------------------------------------------------------------
     | Relationships
     ---------------------------------------------------------------------------*/
@@ -51,7 +64,11 @@ class Project extends Model {
         return $this->morphMany(Comment::class, 'commentable')->orderBy('created_at');
     }
 
-    public function attachments() {
-        return $this->hasMany(Attachment::class);
+    // All attachments in the project — images in any task description,
+    // any comment, or the project description itself. Powers the Files
+    // tab aggregation. Distinct from `attachments()` inherited from the
+    // trait, which is the morphMany for THIS project's own RTE content.
+    public function allAttachments() {
+        return $this->hasMany(Attachment::class)->committed();
     }
 }
