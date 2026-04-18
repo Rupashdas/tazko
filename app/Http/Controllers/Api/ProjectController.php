@@ -14,6 +14,7 @@ class ProjectController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member',              only: ['update', 'destroy', 'archive', 'restore']),
+            new Middleware('project.not_archived',        only: ['update', 'archive']),
             new Middleware('capability:projects.view',    only: ['index', 'show', 'archivedIndex']),
             new Middleware('capability:projects.create',  only: ['store']),
             new Middleware('capability:projects.update',  only: ['update']),
@@ -39,9 +40,10 @@ class ProjectController extends Controller implements HasMiddleware {
 
         // ── Search ────────────────────────────────────────────────────────────
         if ($search = $request->string('search')->trim()->value()) {
-            $baseQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+            $escaped = addcslashes($search, '%_\\');
+            $baseQuery->where(function ($q) use ($escaped) {
+                $q->where('name', 'like', "%{$escaped}%")
+                    ->orWhere('description', 'like', "%{$escaped}%");
             });
         }
 
@@ -224,9 +226,10 @@ class ProjectController extends Controller implements HasMiddleware {
         }
 
         if ($search = $request->string('search')->trim()->value()) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+            $escaped = addcslashes($search, '%_\\');
+            $query->where(function ($q) use ($escaped) {
+                $q->where('name', 'like', "%{$escaped}%")
+                    ->orWhere('description', 'like', "%{$escaped}%");
             });
         }
 

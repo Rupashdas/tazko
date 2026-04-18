@@ -19,13 +19,17 @@ use App\Http\Controllers\Api\AttachmentShareController;
 use App\Http\Controllers\Api\PublicShareController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
-Route::post('/register',        [AuthController::class, 'register']);
-Route::post('/login',           [AuthController::class, 'login']);
-Route::post('/password/email',  [AuthController::class, 'sendResetLinkEmail']);
-Route::post('/password/reset',  [AuthController::class, 'resetPassword']);
+// Rate-limited to mitigate brute-force and abuse.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/register',        [AuthController::class, 'register']);
+    Route::post('/login',           [AuthController::class, 'login']);
+    Route::post('/password/email',  [AuthController::class, 'sendResetLinkEmail']);
+    Route::post('/password/reset',  [AuthController::class, 'resetPassword']);
 
-Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
-Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
+    Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
+});
+
+Route::get('/invitations/{token}', [InvitationController::class, 'show']);
 
 // Public attachment share links. No auth — access is gated by token
 // validity (enabled + not expired) inside the controller. URL shape:
@@ -100,7 +104,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // ── Attachments ──────────────────────────────────────────────────────────
     // Files-tab + upload endpoints sit under their owning project.
     Route::post('/projects/{project}/attachments', [AttachmentController::class, 'store'])
-        ->middleware('can:upload-attachment,project');
+        ->middleware(['can:upload-attachment,project', 'project.not_archived']);
     Route::get('/projects/{project}/attachments',  [AttachmentController::class, 'index']);
 
     // Per-attachment routes. Access control runs inside the controller via

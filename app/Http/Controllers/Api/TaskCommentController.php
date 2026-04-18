@@ -17,6 +17,7 @@ class TaskCommentController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
+            new Middleware('project.not_archived', only: ['store', 'update', 'destroy', 'toggleLike']),
             new Middleware('capability:comments.view',   only: ['index']),
             new Middleware('capability:comments.create', only: ['store']),
             new Middleware('capability:comments.update', only: ['update']),
@@ -123,9 +124,7 @@ class TaskCommentController extends Controller implements HasMiddleware {
             $liked = true;
         }
 
-        $likesCount = $liked
-            ? ($comment->likes_count ?? 0) + 1
-            : max(0, ($comment->likes_count ?? 0) - 1);
+        $likesCount = $comment->likes()->count();
 
         return response()->json([
             'liked'       => $liked,

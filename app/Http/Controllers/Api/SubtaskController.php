@@ -16,6 +16,7 @@ class SubtaskController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
+            new Middleware('project.not_archived'),
             new Middleware('capability:tasks.subtask.manage'),
         ];
     }

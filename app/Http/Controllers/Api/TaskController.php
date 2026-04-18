@@ -16,6 +16,7 @@ class TaskController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
+            new Middleware('project.not_archived', only: ['store', 'update', 'destroy', 'reorder']),
             new Middleware('capability:tasks.view',   only: ['index', 'show']),
             new Middleware('capability:tasks.create', only: ['store']),
             // update does granular per-field capability checks inside the controller
@@ -28,15 +29,30 @@ class TaskController extends Controller implements HasMiddleware {
     /**
      * GET /api/projects/{project}/tasks
      */
-    public function index(Project $project): JsonResponse {
-        $tasks = $project->tasks()
+    public function index(Request $request, Project $project): JsonResponse {
+        // Board views need the full list; paginate only when the caller asks.
+        $query = $project->tasks()
             ->with(['assignees', 'createdBy'])
             ->orderBy('sort_order')
-            ->orderBy('created_at')
-            ->get();
+            ->orderBy('created_at');
+
+        if ($request->filled('per_page')) {
+            $tasks = $query->paginate((int) $request->input('per_page'));
+
+            return response()->json([
+                'data' => TaskResource::collection($tasks),
+                'meta' => [
+                    'current_page' => $tasks->currentPage(),
+                    'last_page'    => $tasks->lastPage(),
+                    'per_page'     => $tasks->perPage(),
+                    'total'        => $tasks->total(),
+                    'has_more'     => $tasks->hasMorePages(),
+                ],
+            ]);
+        }
 
         return response()->json([
-            'data' => TaskResource::collection($tasks),
+            'data' => TaskResource::collection($query->get()),
         ]);
     }
 

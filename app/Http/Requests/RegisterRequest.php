@@ -25,7 +25,7 @@ class RegisterRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:8|confirmed',
         ];
     }
 
@@ -43,6 +43,7 @@ class RegisterRequest extends FormRequest
             'password.required' => 'Password is required.',
             'password.string'   => 'Password must be a valid string.',
             'password.min'      => 'Password must be at least 8 characters long.',
+            'password.confirmed' => 'Password confirmation does not match.',
         ];
     }
     protected function prepareForValidation(): void

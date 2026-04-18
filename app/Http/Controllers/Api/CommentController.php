@@ -16,6 +16,7 @@ class CommentController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
+            new Middleware('project.not_archived', only: ['store', 'update', 'destroy', 'toggleLike']),
             new Middleware('capability:comments.view',   only: ['index']),
             new Middleware('capability:comments.create', only: ['store']),
             new Middleware('capability:comments.update', only: ['update']),
@@ -68,6 +69,7 @@ class CommentController extends Controller implements HasMiddleware {
      */
     public function update(Request $request, Project $project, Comment $comment): JsonResponse {
         abort_if($comment->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Project::class || $comment->commentable_id !== $project->id, 404);
         abort_if($comment->user_id !== auth()->id(), 403, 'You can only edit your own comments.');
 
         $request->validate([
@@ -93,6 +95,7 @@ class CommentController extends Controller implements HasMiddleware {
      */
     public function destroy(Project $project, Comment $comment): JsonResponse {
         abort_if($comment->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Project::class || $comment->commentable_id !== $project->id, 404);
 
         $isOwn = $comment->user_id === auth()->id();
         abort_if(! $isOwn && ! auth()->user()->isSuperAdmin(), 403, 'You can only delete your own comments.');
@@ -107,6 +110,7 @@ class CommentController extends Controller implements HasMiddleware {
      */
     public function toggleLike(Project $project, Comment $comment): JsonResponse {
         abort_if($comment->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Project::class || $comment->commentable_id !== $project->id, 404);
 
         $authId = auth()->id();
         $existing = CommentLike::where('comment_id', $comment->id)->where('user_id', $authId)->first();
@@ -119,9 +123,7 @@ class CommentController extends Controller implements HasMiddleware {
             $liked = true;
         }
 
-        $likesCount = $liked
-            ? ($comment->likes_count ?? 0) + 1
-            : max(0, ($comment->likes_count ?? 0) - 1);
+        $likesCount = $comment->likes()->count();
 
         return response()->json([
             'liked'       => $liked,

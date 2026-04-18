@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -29,13 +30,21 @@ class UserController extends Controller implements HasMiddleware {
     /**
      * GET /api/users
      */
-    public function index(): JsonResponse {
+    public function index(Request $request): JsonResponse {
+        $perPage = (int) $request->input('per_page', 20);
         $users = User::with('roles.capabilities')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
 
         return response()->json([
             'data' => UserResource::collection($users),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'last_page'    => $users->lastPage(),
+                'per_page'     => $users->perPage(),
+                'total'        => $users->total(),
+                'has_more'     => $users->hasMorePages(),
+            ],
         ]);
     }
 
@@ -192,8 +201,19 @@ class UserController extends Controller implements HasMiddleware {
             ], 403);
         }
 
-        $user->roles()->detach();
-        $user->delete();
+        // Clean up associated data to avoid orphaned rows with dangling FKs.
+        DB::transaction(function () use ($user) {
+            $user->roles()->detach();
+            $user->preference()?->delete();
+
+            // Detach the user from task assignments (pivot rows).
+            DB::table('task_assignees')->where('user_id', $user->id)->delete();
+
+            // Detach from project memberships.
+            DB::table('project_members')->where('user_id', $user->id)->delete();
+
+            $user->delete();
+        });
 
         return response()->json([
             'status'  => 'success',

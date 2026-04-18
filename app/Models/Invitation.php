@@ -39,7 +39,14 @@ class Invitation extends Model {
     ---------------------------------------------------------------------------*/
 
     public static function generateToken(): string {
-        return Str::random(64);
+        // Loop until we find a token that isn't already used. Collisions are
+        // astronomically unlikely with 64 random bytes but the uniqueness
+        // check keeps us honest and matches the AttachmentShare pattern.
+        do {
+            $token = Str::random(64);
+        } while (static::where('token', $token)->exists());
+
+        return $token;
     }
 
     public function isPending(): bool {

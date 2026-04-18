@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\EnsureProjectMember;
+use App\Http\Middleware\EnsureProjectNotArchived;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RequiresCapability;
 
@@ -18,9 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         $middleware->alias([
-            'capability'     => RequiresCapability::class,
-            'active'         => EnsureUserIsActive::class,
-            'project.member' => EnsureProjectMember::class,
+            'capability'           => RequiresCapability::class,
+            'active'               => EnsureUserIsActive::class,
+            'project.member'       => EnsureProjectMember::class,
+            'project.not_archived' => EnsureProjectNotArchived::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

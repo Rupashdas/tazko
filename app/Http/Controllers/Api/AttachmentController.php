@@ -57,7 +57,8 @@ class AttachmentController extends Controller {
             $query->where('uploaded_by', $uploader);
         }
         if ($q = $request->string('q')->trim()->value()) {
-            $query->where('name', 'like', "%{$q}%");
+            $escaped = addcslashes($q, '%_\\');
+            $query->where('name', 'like', "%{$escaped}%");
         }
 
         return AttachmentResource::collection(

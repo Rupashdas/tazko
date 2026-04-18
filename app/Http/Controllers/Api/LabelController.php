@@ -14,6 +14,7 @@ class LabelController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
+            new Middleware('project.not_archived', only: ['store', 'destroy']),
             // Viewing the label palette is part of viewing tasks.
             new Middleware('capability:tasks.view',   only: ['index']),
             // Creating/removing labels is a task-update action.
