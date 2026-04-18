@@ -16,10 +16,12 @@ class TaskController extends Controller implements HasMiddleware {
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
-            new Middleware('capability:tasks.view',   only: ['index']),
+            new Middleware('capability:tasks.view',   only: ['index', 'show']),
             new Middleware('capability:tasks.create', only: ['store']),
-            new Middleware('capability:tasks.update', only: ['update', 'reorder']),
-            new Middleware('capability:tasks.delete', only: ['destroy']),
+            // update does granular per-field capability checks inside the controller
+            // so that (e.g.) a user with only `tasks.status.update` can still hit the endpoint.
+            new Middleware('capability:tasks.reorder', only: ['reorder']),
+            new Middleware('capability:tasks.delete',  only: ['destroy']),
         ];
     }
 
@@ -36,6 +38,17 @@ class TaskController extends Controller implements HasMiddleware {
         return response()->json([
             'data' => TaskResource::collection($tasks),
         ]);
+    }
+
+    /**
+     * GET /api/projects/{project}/tasks/{task}
+     */
+    public function show(Project $project, Task $task): JsonResponse {
+        abort_if($task->project_id !== $project->id, 404);
+
+        $task->load(['assignees', 'createdBy', 'labels', 'subtasks', 'project.members']);
+
+        return response()->json(['data' => new TaskResource($task)]);
     }
 
     /**
@@ -95,6 +108,10 @@ class TaskController extends Controller implements HasMiddleware {
 
     /**
      * PATCH /api/projects/{project}/tasks/{task}
+     *
+     * Granular per-field capability checks — a user only needs the capability
+     * for the specific field they're changing. This lets roles like
+     * `tasks.status.update` work without the broad `tasks.update`.
      */
     public function update(Request $request, Project $project, Task $task): JsonResponse {
         abort_if($task->project_id !== $project->id, 404);
@@ -107,7 +124,27 @@ class TaskController extends Controller implements HasMiddleware {
             'due_date'       => 'sometimes|nullable|date',
             'assignee_ids'   => 'sometimes|nullable|array',
             'assignee_ids.*' => Rule::exists('project_members', 'user_id')->where('project_id', $project->id),
+            'label_ids'      => 'sometimes|nullable|array',
+            'label_ids.*'    => Rule::exists('labels', 'id')->where('project_id', $project->id),
         ]);
+
+        // Map each incoming field to the capability required to change it.
+        $fieldCapabilities = [
+            'title'        => 'tasks.update',
+            'description'  => 'tasks.update',
+            'label_ids'    => 'tasks.update',
+            'status'       => 'tasks.status.update',
+            'priority'     => 'tasks.priority.update',
+            'due_date'     => 'tasks.deadline.update',
+            'assignee_ids' => 'tasks.assign',
+        ];
+
+        $user = $request->user();
+        foreach ($fieldCapabilities as $field => $capability) {
+            if ($request->has($field) && !$user->hasCapability($capability)) {
+                abort(403, "You do not have permission to change this task's {$field}.");
+            }
+        }
 
         $task->update($request->only(['title', 'description', 'status', 'priority', 'due_date']));
 
@@ -115,7 +152,11 @@ class TaskController extends Controller implements HasMiddleware {
             $task->assignees()->sync($request->assignee_ids ?? []);
         }
 
-        $task->load(['assignees', 'createdBy']);
+        if ($request->has('label_ids')) {
+            $task->labels()->sync($request->label_ids ?? []);
+        }
+
+        $task->load(['assignees', 'createdBy', 'labels', 'subtasks', 'project.members']);
 
         return response()->json(['data' => new TaskResource($task)]);
     }

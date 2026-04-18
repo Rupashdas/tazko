@@ -29,6 +29,35 @@ class TaskResource extends JsonResource {
                 'id'   => $this->createdBy->id,
                 'name' => $this->createdBy->name,
             ]),
+
+            'labels' => $this->whenLoaded('labels', fn() =>
+                $this->labels->map(fn($label) => [
+                    'id'    => $label->id,
+                    'name'  => $label->name,
+                    'color' => $label->color,
+                ])
+            ),
+
+            'subtasks' => $this->whenLoaded('subtasks', fn() =>
+                $this->subtasks->map(fn($subtask) => [
+                    'id'         => $subtask->id,
+                    'title'      => $subtask->title,
+                    'is_done'    => $subtask->is_done,
+                    'sort_order' => $subtask->sort_order,
+                ])
+            ),
+
+            'project' => $this->whenLoaded('project', fn() => [
+                'id'      => $this->project->id,
+                'name'    => $this->project->name,
+                'members' => $this->project->relationLoaded('members')
+                    ? $this->project->members->map(fn($m) => [
+                        'id'     => $m->id,
+                        'name'   => $m->name,
+                        'avatar' => $m->avatar ? asset('storage/' . $m->avatar) : null,
+                    ])
+                    : [],
+            ]),
         ];
     }
 }

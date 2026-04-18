@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasRteAttachments;
+use App\Models\Comment;
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model {
@@ -56,5 +57,9 @@ class Task extends Model {
 
     public function subtasks() {
         return $this->hasMany(Subtask::class)->orderBy('sort_order');
+    }
+
+    public function comments() {
+        return $this->morphMany(Comment::class, 'commentable')->orderBy('created_at');
     }
 }

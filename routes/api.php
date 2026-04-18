@@ -10,7 +10,10 @@ use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ProjectMemberController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\SubtaskController;
+use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\TaskCommentController;
 use App\Http\Controllers\Api\AttachmentController;
 use App\Http\Controllers\Api\AttachmentShareController;
 use App\Http\Controllers\Api\PublicShareController;
@@ -67,8 +70,26 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/projects/{project}/tasks',                  [TaskController::class, 'index']);
     Route::post('/projects/{project}/tasks',                 [TaskController::class, 'store']);
     Route::post('/projects/{project}/tasks/reorder',         [TaskController::class, 'reorder']);
+    Route::get('/projects/{project}/tasks/{task}',           [TaskController::class, 'show']);
     Route::patch('/projects/{project}/tasks/{task}',         [TaskController::class, 'update']);
     Route::delete('/projects/{project}/tasks/{task}',        [TaskController::class, 'destroy']);
+
+    // ── Subtasks ─────────────────────────────────────────────────────────────
+    Route::post('/projects/{project}/tasks/{task}/subtasks/reorder',                [SubtaskController::class, 'reorder']);
+    Route::post('/projects/{project}/tasks/{task}/subtasks',                        [SubtaskController::class, 'store']);
+    Route::patch('/projects/{project}/tasks/{task}/subtasks/{subtask}',             [SubtaskController::class, 'update']);
+    Route::delete('/projects/{project}/tasks/{task}/subtasks/{subtask}',            [SubtaskController::class, 'destroy']);
+
+    // ── Labels (project-scoped palette) ──────────────────────────────────────
+    Route::get('/projects/{project}/labels',                                        [LabelController::class, 'index']);
+    Route::post('/projects/{project}/labels',                                       [LabelController::class, 'store']);
+    Route::delete('/projects/{project}/labels/{label}',                             [LabelController::class, 'destroy']);
+
+    Route::get('/projects/{project}/tasks/{task}/comments',                          [TaskCommentController::class, 'index']);
+    Route::post('/projects/{project}/tasks/{task}/comments',                         [TaskCommentController::class, 'store']);
+    Route::patch('/projects/{project}/tasks/{task}/comments/{comment}',              [TaskCommentController::class, 'update']);
+    Route::delete('/projects/{project}/tasks/{task}/comments/{comment}',             [TaskCommentController::class, 'destroy']);
+    Route::post('/projects/{project}/tasks/{task}/comments/{comment}/like',          [TaskCommentController::class, 'toggleLike']);
 
     Route::get('/projects/{project}/comments',                          [CommentController::class, 'index']);
     Route::post('/projects/{project}/comments',                         [CommentController::class, 'store']);
