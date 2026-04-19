@@ -17,9 +17,10 @@ class CommentResource extends JsonResource {
             'updated_at'  => $this->updated_at,
 
             'user' => $this->whenLoaded('user', fn() => [
-                'id'     => $this->user->id,
-                'name'   => $this->user->name,
-                'avatar' => $this->user->avatar ? asset('storage/' . $this->user->avatar) : null,
+                'id'      => $this->user->id,
+                'name'    => $this->user->name,
+                'avatar'  => $this->user->avatar ? asset('storage/' . $this->user->avatar) : null,
+                'palette' => $this->user->relationLoaded('preference') ? ($this->user->preference?->palette ?? 'aurora') : 'aurora',
             ]),
 
             'likes_count'  => $this->when(isset($this->likes_count), $this->likes_count, fn() => $this->likes()->count()),

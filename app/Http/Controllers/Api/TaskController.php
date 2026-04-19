@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller implements HasMiddleware {
@@ -32,7 +33,10 @@ class TaskController extends Controller implements HasMiddleware {
     public function index(Request $request, Project $project): JsonResponse {
         // Board views need the full list; paginate only when the caller asks.
         $query = $project->tasks()
-            ->with(['assignees', 'createdBy'])
+            ->with([
+                'assignees' => fn($q) => $q->with('preference')->orderBy('task_assignees.id'),
+                'createdBy',
+            ])
             ->orderBy('sort_order')
             ->orderBy('created_at');
 
@@ -62,7 +66,10 @@ class TaskController extends Controller implements HasMiddleware {
     public function show(Project $project, Task $task): JsonResponse {
         abort_if($task->project_id !== $project->id, 404);
 
-        $task->load(['assignees', 'createdBy', 'labels', 'subtasks', 'project.members']);
+        $task->load([
+            'assignees' => fn($q) => $q->with('preference')->orderBy('task_assignees.id'),
+            'createdBy', 'labels', 'subtasks', 'project.members.preference',
+        ]);
 
         return response()->json(['data' => new TaskResource($task)]);
     }
@@ -78,24 +85,31 @@ class TaskController extends Controller implements HasMiddleware {
             'priority'       => 'nullable|in:Urgent,High,Medium,Low',
             'due_date'       => 'nullable|date',
             'assignee_ids'   => 'nullable|array',
-            'assignee_ids.*' => Rule::exists('project_members', 'user_id')->where('project_id', $project->id),
+            'assignee_ids.*' => Rule::exists('users', 'id')->where('is_active', true),
         ]);
 
-        $task = $project->tasks()->create([
-            'created_by'  => auth()->id(),
-            'title'       => $request->title,
-            'description' => $request->description,
-            'status'      => $request->status ?? 'Todo',
-            'priority'    => $request->priority ?? 'Medium',
-            'due_date'    => $request->due_date,
-            'sort_order'  => ($project->tasks()->max('sort_order') ?? 0) + 1,
+        $task = DB::transaction(function () use ($request, $project) {
+            $task = $project->tasks()->create([
+                'created_by'  => auth()->id(),
+                'title'       => $request->title,
+                'description' => $request->description,
+                'status'      => $request->status ?? 'Todo',
+                'priority'    => $request->priority ?? 'Medium',
+                'due_date'    => $request->due_date,
+                'sort_order'  => ($project->tasks()->max('sort_order') ?? 0) + 1,
+            ]);
+
+            if ($request->filled('assignee_ids')) {
+                $this->autoAddMembersAndSync($project, $task, $request->assignee_ids);
+            }
+
+            return $task;
+        });
+
+        $task->load([
+            'assignees' => fn($q) => $q->with('preference')->orderBy('task_assignees.id'),
+            'createdBy', 'project.members.preference',
         ]);
-
-        if ($request->filled('assignee_ids')) {
-            $task->assignees()->sync($request->assignee_ids);
-        }
-
-        $task->load(['assignees', 'createdBy']);
 
         return response()->json(['data' => new TaskResource($task)], 201);
     }
@@ -139,7 +153,7 @@ class TaskController extends Controller implements HasMiddleware {
             'priority'       => 'sometimes|in:Urgent,High,Medium,Low',
             'due_date'       => 'sometimes|nullable|date',
             'assignee_ids'   => 'sometimes|nullable|array',
-            'assignee_ids.*' => Rule::exists('project_members', 'user_id')->where('project_id', $project->id),
+            'assignee_ids.*' => Rule::exists('users', 'id')->where('is_active', true),
             'label_ids'      => 'sometimes|nullable|array',
             'label_ids.*'    => Rule::exists('labels', 'id')->where('project_id', $project->id),
         ]);
@@ -165,16 +179,45 @@ class TaskController extends Controller implements HasMiddleware {
         $task->update($request->only(['title', 'description', 'status', 'priority', 'due_date']));
 
         if ($request->has('assignee_ids')) {
-            $task->assignees()->sync($request->assignee_ids ?? []);
+            DB::transaction(function () use ($request, $project, $task) {
+                $this->autoAddMembersAndSync($project, $task, $request->assignee_ids ?? []);
+            });
         }
 
         if ($request->has('label_ids')) {
             $task->labels()->sync($request->label_ids ?? []);
         }
 
-        $task->load(['assignees', 'createdBy', 'labels', 'subtasks', 'project.members']);
+        $task->load([
+            'assignees' => fn($q) => $q->with('preference')->orderBy('task_assignees.id'),
+            'createdBy', 'labels', 'subtasks', 'project.members.preference',
+        ]);
 
         return response()->json(['data' => new TaskResource($task)]);
+    }
+
+    /**
+     * Auto-add any assignees who are not yet project members, then sync task assignees.
+     * Must be called inside a DB::transaction().
+     */
+    private function autoAddMembersAndSync(Project $project, Task $task, array $assigneeIds): void {
+        if (empty($assigneeIds)) {
+            $task->assignees()->sync([]);
+            return;
+        }
+
+        $project->loadMissing('members');
+        $existingMemberIds = $project->members->pluck('id');
+
+        $newMemberIds = collect($assigneeIds)->diff($existingMemberIds);
+        foreach ($newMemberIds as $userId) {
+            $project->members()->attach($userId, ['role' => null]);
+        }
+
+        // Bust the loaded relation so the response reflects the new state
+        $project->unsetRelation('members');
+
+        $task->assignees()->sync($assigneeIds);
     }
 
     /**

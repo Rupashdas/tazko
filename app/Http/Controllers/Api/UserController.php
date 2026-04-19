@@ -32,8 +32,14 @@ class UserController extends Controller implements HasMiddleware {
      */
     public function index(Request $request): JsonResponse {
         $perPage = (int) $request->input('per_page', 20);
-        $users = User::with('roles.capabilities')
-            ->orderBy('created_at', 'desc')
+        $search  = trim($request->input('search', ''));
+
+        $users = User::with('roles.capabilities', 'preference')
+            ->when($search, fn($q) => $q->where(function ($sub) use ($search) {
+                $sub->where('name',  'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            }))
+            ->orderBy($search ? 'name' : 'created_at', $search ? 'asc' : 'desc')
             ->paginate($perPage);
 
         return response()->json([
@@ -53,7 +59,7 @@ class UserController extends Controller implements HasMiddleware {
      * Requires: users.profile.view
      */
     public function show(User $user): JsonResponse {
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'data' => new UserResource($user),
@@ -85,7 +91,7 @@ class UserController extends Controller implements HasMiddleware {
             $user->roles()->sync([$validated['role_id']]);
         }
 
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',
@@ -105,7 +111,7 @@ class UserController extends Controller implements HasMiddleware {
         ]);
 
         $user->update($validated);
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',
@@ -136,7 +142,7 @@ class UserController extends Controller implements HasMiddleware {
         }
 
         $user->update(['is_active' => !$user->is_active]);
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         $status = $user->is_active ? 'activated' : 'deactivated';
 
@@ -173,7 +179,7 @@ class UserController extends Controller implements HasMiddleware {
         }
 
         $user->roles()->sync([$validated['role_id']]);
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',

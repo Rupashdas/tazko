@@ -12,6 +12,7 @@ class UserResource extends JsonResource {
             'name'      => $this->name,
             'email'     => $this->email,
             'avatar'    => $this->avatar ? asset('storage/' . $this->avatar) : null,
+            'palette'   => $this->whenLoaded('preference', fn() => $this->preference?->palette ?? 'aurora', 'aurora'),
             'title'     => $this->title,
             'phone'     => $this->phone,
             'bio'       => $this->bio,

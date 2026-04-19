@@ -71,7 +71,7 @@ class ProjectController extends Controller implements HasMiddleware {
         $perPage = (int) $request->input('per_page', 6);
 
         $projects = $baseQuery
-            ->with(['createdBy', 'members'])
+            ->with(['createdBy', 'members.preference'])
             ->withCount([
                 'tasks as tasks_total',
                 'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
@@ -240,7 +240,7 @@ class ProjectController extends Controller implements HasMiddleware {
 
         $perPage  = (int) $request->input('per_page', 6);
         $projects = $query
-            ->with(['createdBy', 'members'])
+            ->with(['createdBy', 'members.preference'])
             ->withCount([
                 'tasks as tasks_total',
                 'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),

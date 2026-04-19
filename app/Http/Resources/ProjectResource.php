@@ -36,12 +36,13 @@ class ProjectResource extends JsonResource {
 
             'members' => $this->whenLoaded('members', fn() =>
                 $this->members->map(fn($user) => [
-                    'id'     => $user->id,
-                    'name'   => $user->name,
-                    'avatar' => $user->avatar
+                    'id'      => $user->id,
+                    'name'    => $user->name,
+                    'avatar'  => $user->avatar
                         ? asset('storage/' . $user->avatar)
                         : null,
-                    'role'   => $user->pivot->role,
+                    'palette' => $user->relationLoaded('preference') ? ($user->preference?->palette ?? 'aurora') : 'aurora',
+                    'role'    => $user->pivot->role,
                 ])
             ),
         ];

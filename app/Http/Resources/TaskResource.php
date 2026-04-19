@@ -19,9 +19,10 @@ class TaskResource extends JsonResource {
 
             'assignees' => $this->whenLoaded('assignees', fn() =>
                 $this->assignees->map(fn($user) => [
-                    'id'     => $user->id,
-                    'name'   => $user->name,
-                    'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
+                    'id'      => $user->id,
+                    'name'    => $user->name,
+                    'avatar'  => $user->avatar ? asset('storage/' . $user->avatar) : null,
+                    'palette' => $user->relationLoaded('preference') ? ($user->preference?->palette ?? 'aurora') : 'aurora',
                 ])
             ),
 
@@ -52,9 +53,10 @@ class TaskResource extends JsonResource {
                 'name'    => $this->project->name,
                 'members' => $this->project->relationLoaded('members')
                     ? $this->project->members->map(fn($m) => [
-                        'id'     => $m->id,
-                        'name'   => $m->name,
-                        'avatar' => $m->avatar ? asset('storage/' . $m->avatar) : null,
+                        'id'      => $m->id,
+                        'name'    => $m->name,
+                        'avatar'  => $m->avatar ? asset('storage/' . $m->avatar) : null,
+                        'palette' => $m->relationLoaded('preference') ? ($m->preference?->palette ?? 'aurora') : 'aurora',
                     ])
                     : [],
             ]),
