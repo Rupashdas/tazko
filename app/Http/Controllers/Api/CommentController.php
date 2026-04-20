@@ -32,7 +32,7 @@ class CommentController extends Controller implements HasMiddleware {
         $authId = auth()->id();
 
         $comments = $project->comments()
-            ->with(['user', 'attachments'])
+            ->with(['user.preference', 'attachments'])
             ->withCount('likes')
             ->withExists(['likes as liked_by_me' => fn($q) => $q->where('user_id', $authId)])
             ->get();
@@ -57,7 +57,7 @@ class CommentController extends Controller implements HasMiddleware {
             'body'       => $request->body,
         ]);
 
-        $comment->loadMissing(['user', 'attachments']);
+        $comment->loadMissing(['user.preference', 'attachments']);
         $comment->likes_count = 0;
         $comment->liked_by_me = false;
 
@@ -83,7 +83,7 @@ class CommentController extends Controller implements HasMiddleware {
 
         $authId = auth()->id();
 
-        $comment->load(['user', 'attachments']);
+        $comment->load(['user.preference', 'attachments']);
         $comment->loadCount('likes');
         $comment->liked_by_me = $comment->likes()->where('user_id', $authId)->exists();
 
