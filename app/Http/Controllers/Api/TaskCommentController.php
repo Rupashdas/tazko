@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 
 class TaskCommentController extends Controller implements HasMiddleware {
     public static function middleware(): array {
@@ -71,6 +72,7 @@ class TaskCommentController extends Controller implements HasMiddleware {
      */
     public function update(Request $request, Project $project, Task $task, Comment $comment): JsonResponse {
         abort_if($task->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Task::class, 404);
         abort_if($comment->commentable_id !== $task->id, 404);
         abort_if($comment->user_id !== auth()->id(), 403, 'You can only edit your own comments.');
 
@@ -94,6 +96,7 @@ class TaskCommentController extends Controller implements HasMiddleware {
      */
     public function destroy(Project $project, Task $task, Comment $comment): JsonResponse {
         abort_if($task->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Task::class, 404);
         abort_if($comment->commentable_id !== $task->id, 404);
 
         $isOwn = $comment->user_id === auth()->id();
@@ -109,26 +112,29 @@ class TaskCommentController extends Controller implements HasMiddleware {
      */
     public function toggleLike(Project $project, Task $task, Comment $comment): JsonResponse {
         abort_if($task->project_id !== $project->id, 404);
+        abort_if($comment->commentable_type !== Task::class, 404);
         abort_if($comment->commentable_id !== $task->id, 404);
 
         $authId = auth()->id();
-        $existing = CommentLike::where('comment_id', $comment->id)
-            ->where('user_id', $authId)
-            ->first();
 
-        if ($existing) {
-            $existing->delete();
-            $liked = false;
-        } else {
+        $liked = DB::transaction(function () use ($comment, $authId) {
+            $existing = CommentLike::where('comment_id', $comment->id)
+                ->where('user_id', $authId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $existing->delete();
+                return false;
+            }
+
             CommentLike::create(['comment_id' => $comment->id, 'user_id' => $authId]);
-            $liked = true;
-        }
-
-        $likesCount = $comment->likes()->count();
+            return true;
+        });
 
         return response()->json([
             'liked'       => $liked,
-            'likes_count' => $likesCount,
+            'likes_count' => $comment->likes()->count(),
         ]);
     }
 }

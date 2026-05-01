@@ -109,7 +109,7 @@ class ProjectController extends Controller implements HasMiddleware {
             }
         }
 
-        $project->load(['createdBy', 'members']);
+        $project->load(['createdBy', 'members.preference']);
         $project->loadCount([
             'tasks as tasks_total',
             'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
@@ -144,7 +144,7 @@ class ProjectController extends Controller implements HasMiddleware {
         // Automatically add the creator as a project member with role 'owner'
         $project->members()->attach($request->user()->id, ['role' => 'owner']);
 
-        $project->load(['createdBy', 'members']);
+        $project->load(['createdBy', 'members.preference']);
         $project->loadCount([
             'tasks as tasks_total',
             'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
@@ -173,7 +173,7 @@ class ProjectController extends Controller implements HasMiddleware {
 
         $project->update($validated);
 
-        $project->load(['createdBy', 'members']);
+        $project->load(['createdBy', 'members.preference']);
         $project->loadCount([
             'tasks as tasks_total',
             'tasks as tasks_done' => fn($q) => $q->where('status', 'Done'),
@@ -233,9 +233,14 @@ class ProjectController extends Controller implements HasMiddleware {
             });
         }
 
-        // Stat counts
-        $total      = (clone $query)->count();
-        $completed  = (clone $query)->where('status', 'Completed')->count();
+        // Stat counts — single aggregate query rather than three trips.
+        $stats = (clone $query)
+            ->toBase()
+            ->selectRaw("COUNT(*) as total, SUM(status = 'Completed') as completed")
+            ->first();
+
+        $total      = (int) ($stats->total      ?? 0);
+        $completed  = (int) ($stats->completed  ?? 0);
         $incomplete = $total - $completed;
 
         $perPage  = (int) $request->input('per_page', 6);

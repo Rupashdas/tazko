@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Attachment;
+use App\Models\Draft;
 use Illuminate\Console\Command;
 
 /**
@@ -30,14 +31,31 @@ class ReapOrphanAttachments extends Command {
                             {--dry-run : List what would be deleted without touching anything}
                             {--chunk=200 : How many rows to process per DB round trip}';
 
-    protected $description = 'Delete uploaded attachments that were never linked to a parent before the TTL expired.';
+    protected $description = 'Delete uploaded attachments that were never linked to a parent before the TTL expired. Skips attachments pinned to active drafts.';
 
     public function handle(): int {
         $dryRun = (bool) $this->option('dry-run');
         $chunk  = max(1, (int) $this->option('chunk'));
         $ttl    = (int) config('attachments.orphan_ttl_hours', 24);
 
-        $this->info("Reaping orphan attachments older than {$ttl}h" . ($dryRun ? ' [DRY RUN]' : '') . '…');
+        // Collect every attachment id pinned to a non-expired draft. These
+        // get a free pass — the user is still composing.
+        $pinned = Draft::active()
+            ->whereNotNull('attachment_ids')
+            ->pluck('attachment_ids')
+            ->flatten()
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->info(sprintf(
+            'Reaping orphan attachments older than %dh%s. Pinned to drafts: %d.',
+            $ttl,
+            $dryRun ? ' [DRY RUN]' : '',
+            count($pinned),
+        ));
 
         $total     = 0;
         $filesGone = 0;
@@ -47,6 +65,7 @@ class ReapOrphanAttachments extends Command {
         // it walks primary key ranges forward — new orphans inserted during
         // the run just get picked up next hour.
         Attachment::orphaned()
+            ->when(! empty($pinned), fn ($q) => $q->whereNotIn('id', $pinned))
             ->orderBy('id')
             ->chunkById($chunk, function ($batch) use (&$total, &$filesGone, &$failed, $dryRun) {
                 foreach ($batch as $attachment) {

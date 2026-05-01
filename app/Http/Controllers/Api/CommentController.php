@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 
 class CommentController extends Controller implements HasMiddleware {
     public static function middleware(): array {
@@ -113,21 +114,27 @@ class CommentController extends Controller implements HasMiddleware {
         abort_if($comment->commentable_type !== Project::class || $comment->commentable_id !== $project->id, 404);
 
         $authId = auth()->id();
-        $existing = CommentLike::where('comment_id', $comment->id)->where('user_id', $authId)->first();
 
-        if ($existing) {
-            $existing->delete();
-            $liked = false;
-        } else {
+        // lockForUpdate inside a transaction prevents two concurrent toggle
+        // requests from both creating a like (or both deleting one).
+        $liked = DB::transaction(function () use ($comment, $authId) {
+            $existing = CommentLike::where('comment_id', $comment->id)
+                ->where('user_id', $authId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $existing->delete();
+                return false;
+            }
+
             CommentLike::create(['comment_id' => $comment->id, 'user_id' => $authId]);
-            $liked = true;
-        }
-
-        $likesCount = $comment->likes()->count();
+            return true;
+        });
 
         return response()->json([
             'liked'       => $liked,
-            'likes_count' => $likesCount,
+            'likes_count' => $comment->likes()->count(),
         ]);
     }
 }

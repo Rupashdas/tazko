@@ -44,6 +44,10 @@ class AttachmentPolicy {
      * Super admin already short-circuits in before().
      */
     public function delete(User $user, Attachment $attachment): bool {
+        // Defense-in-depth: require active project membership before granting
+        // delete rights, even to the original uploader. Prevents users who
+        // were removed from a project from continuing to delete its files.
+        if (! $this->isProjectMember($user, $attachment->project)) return false;
         if ((int) $attachment->uploaded_by === (int) $user->id) return true;
         if ((int) $attachment->project?->created_by === (int) $user->id) return true;
         return false;

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\TaskCommentController;
 use App\Http\Controllers\Api\AttachmentController;
 use App\Http\Controllers\Api\AttachmentShareController;
 use App\Http\Controllers\Api\PublicShareController;
+use App\Http\Controllers\Api\DraftController;
 
 // ── Public ────────────────────────────────────────────────────────────────────
 // Rate-limited to mitigate brute-force and abuse.
@@ -121,4 +122,11 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Mutate / revoke specific share rows at the top level.
     Route::patch('/attachment-shares/{share}',  [AttachmentShareController::class, 'update']);
     Route::delete('/attachment-shares/{share}', [AttachmentShareController::class, 'destroy']);
+
+    // ── Drafts (per-user RTE auto-save) ──────────────────────────────────────
+    // context_key contains colons (e.g. "task:5:comment:new"), so we use a
+    // permissive {contextKey} param and validate the shape inside the controller.
+    Route::get('/drafts/{contextKey}',    [DraftController::class, 'show'])->where('contextKey', '.*');
+    Route::put('/drafts/{contextKey}',    [DraftController::class, 'update'])->where('contextKey', '.*');
+    Route::delete('/drafts/{contextKey}', [DraftController::class, 'destroy'])->where('contextKey', '.*');
 });

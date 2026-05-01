@@ -44,6 +44,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Draft TTL (days)
+    |--------------------------------------------------------------------------
+    |
+    | How long a per-user draft (rich-text auto-save) is kept before its row
+    | is treated as expired. Attachments pinned to non-expired drafts are
+    | excluded from the orphan reaper, so this also bounds how long an
+    | uploaded-but-never-committed file can survive inside a draft.
+    |
+    */
+    'draft_ttl_days' => (int) env('ATTACHMENT_DRAFT_TTL_DAYS', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Denied extensions
     |--------------------------------------------------------------------------
     |
@@ -54,11 +67,21 @@ return [
     |
     */
     'denied_extensions' => [
-        'exe', 'bat', 'cmd', 'com', 'msi', 'scr', 'dll',
-        'sh', 'bash', 'zsh',
-        'php', 'phtml', 'phar', 'asp', 'aspx', 'jsp',
-        'vbs', 'wsf', 'ps1', 'jar',
-        'dmg', 'app', 'deb', 'rpm',
+        // Windows executables / installers
+        'exe', 'bat', 'cmd', 'com', 'msi', 'scr', 'dll', 'cpl', 'pif',
+        'reg', 'lnk', 'inf', 'msc',
+        // Unix shells / scripts
+        'sh', 'bash', 'zsh', 'csh', 'ksh', 'fish',
+        // Server-side scripts (would execute if uploaded into a public dir)
+        'php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'pht',
+        'asp', 'aspx', 'jsp', 'jspx', 'cgi', 'pl', 'py', 'rb',
+        // Other script formats
+        'vbs', 'vbe', 'wsf', 'wsh', 'ps1', 'ps2', 'psc1', 'psc2',
+        'jse', 'js', 'mjs', 'jar', 'class',
+        // Native binaries / installer packages
+        'dmg', 'app', 'deb', 'rpm', 'apk', 'ipa',
+        // Server config files (could be exfil vectors)
+        'htaccess', 'htpasswd',
     ],
 
     /*
@@ -76,9 +99,26 @@ return [
         'application/x-msdos-program',
         'application/x-executable',
         'application/x-sh',
+        'application/x-shellscript',
         'application/x-msi',
         'application/x-elf',
         'application/x-mach-binary',
+        'application/x-dosexec',
+        'application/x-bat',
+        'application/x-msdos-windows',
+        'application/x-php',
+        'application/x-httpd-php',
+        'application/x-httpd-php-source',
+        'application/x-perl',
+        'application/x-python',
+        'application/x-ruby',
+        'application/javascript',
+        'application/x-javascript',
+        'text/javascript',
+        'text/x-php',
+        'text/x-shellscript',
+        'text/x-perl',
+        'text/x-python',
     ],
 
 ];

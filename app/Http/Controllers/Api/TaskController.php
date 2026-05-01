@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -206,18 +207,35 @@ class TaskController extends Controller implements HasMiddleware {
             return;
         }
 
+        // Re-verify active status. The route validation already runs
+        // Rule::exists()->where('is_active', true), but defense-in-depth
+        // here protects against future callers that bypass that gate (or a
+        // user being deactivated between validation and assignment).
+        $activeAssigneeIds = User::whereIn('id', $assigneeIds)
+            ->where('is_active', true)
+            ->pluck('id')
+            ->all();
+
+        if (empty($activeAssigneeIds)) {
+            $task->assignees()->sync([]);
+            return;
+        }
+
         $project->loadMissing('members');
         $existingMemberIds = $project->members->pluck('id');
 
-        $newMemberIds = collect($assigneeIds)->diff($existingMemberIds);
-        foreach ($newMemberIds as $userId) {
-            $project->members()->attach($userId, ['role' => null]);
+        $newMemberIds = collect($activeAssigneeIds)->diff($existingMemberIds);
+        // syncWithoutDetaching keeps the auto-add atomic and concurrent-safe.
+        if ($newMemberIds->isNotEmpty()) {
+            $project->members()->syncWithoutDetaching(
+                $newMemberIds->mapWithKeys(fn($id) => [$id => ['role' => null]])->all()
+            );
         }
 
         // Bust the loaded relation so the response reflects the new state
         $project->unsetRelation('members');
 
-        $task->assignees()->sync($assigneeIds);
+        $task->assignees()->sync($activeAssigneeIds);
     }
 
     /**

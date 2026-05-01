@@ -30,30 +30,29 @@ class ProjectMemberController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'members'           => 'required|array|min:1',
-            'members.*.user_id' => 'required|integer|exists:users,id',
+            'members.*.user_id' => 'required|integer|exists:users,id,is_active,1',
             'members.*.role'    => 'nullable|string|max:100',
         ]);
 
-        // Fetch IDs already on this project to avoid duplicate-key errors
-        $existingIds = $project->members()->pluck('users.id')->all();
+        // syncWithoutDetaching is atomic at the DB level and idempotent —
+        // existing rows are skipped, so two concurrent add-member requests
+        // for the same user no longer collide on the unique pivot key.
+        $pivotData = collect($validated['members'])
+            ->keyBy('user_id')
+            ->map(fn($item) => ['role' => $item['role'] ?? null])
+            ->all();
 
-        foreach ($validated['members'] as $item) {
-            if (in_array($item['user_id'], $existingIds)) {
-                continue; // silent skip — already a member
-            }
-            $project->members()->attach($item['user_id'], [
-                'role' => $item['role'] ?? null,
-            ]);
-        }
+        $project->members()->syncWithoutDetaching($pivotData);
 
         // Reload and return the full, up-to-date member list
-        $project->load('members');
+        $project->load('members.preference');
 
         $members = $project->members->map(fn($user) => [
-            'id'     => $user->id,
-            'name'   => $user->name,
-            'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
-            'role'   => $user->pivot->role,
+            'id'      => $user->id,
+            'name'    => $user->name,
+            'avatar'  => $user->avatar ? asset('storage/' . $user->avatar) : null,
+            'palette' => $user->preference?->palette ?? 'aurora',
+            'role'    => $user->pivot->role,
         ]);
 
         return response()->json(['members' => $members], 201);

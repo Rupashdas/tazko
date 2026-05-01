@@ -4,8 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserPreferenceController extends Controller {
+
+    /**
+     * Allowed palette names. Must stay in sync with the keys of
+     * tazko-frontend/src/resources/palettes.js — the frontend reads the
+     * persisted value back to apply the corresponding CSS variables.
+     */
+    private const ALLOWED_PALETTES = [
+        'aurora', 'ocean', 'sunset', 'forest', 'rose', 'mono',
+    ];
+
     public function show() {
         $user = auth()->user();
         return response()->json([
@@ -21,17 +32,20 @@ class UserPreferenceController extends Controller {
         $rules = [];
 
         if ($isPalette) {
-            $rules['palette'] = 'required|string';
+            $rules['palette'] = ['required', 'string', Rule::in(self::ALLOWED_PALETTES)];
         }
 
         if ($isAppearance) {
-            $rules['appearance'] = 'required|string';
+            $rules['appearance'] = ['required', Rule::in(['light', 'dark', 'os'])];
         }
 
         if ($isDateTime) {
-            $rules['timezone'] = 'required|string';
-            $rules['week_start'] = 'required|string';
-            $rules['time_format'] = 'required|string';
+            // 'timezone' is a built-in Laravel rule that validates against
+            // PHP's known-timezone list — guards against typos like 'EST'
+            // (not a valid PHP timezone) reaching the frontend formatter.
+            $rules['timezone']    = ['required', 'timezone'];
+            $rules['week_start']  = ['required', Rule::in(['monday', 'sunday'])];
+            $rules['time_format'] = ['required', Rule::in(['12', '24'])];
         }
 
         $validated = $request->validate($rules);

@@ -35,7 +35,7 @@ class AuthController extends Controller {
         // Regenerate session to prevent fixation
         $request->session()->regenerate();
 
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status' => 'success',
@@ -51,8 +51,7 @@ class AuthController extends Controller {
         if (! Auth::attempt($credentials)) {
             return response()->json([
                 'status'  => 'error',
-                'field'   => 'password',
-                'message' => 'Incorrect password',
+                'message' => 'Invalid credentials.',
             ], 401);
         }
 
@@ -69,7 +68,7 @@ class AuthController extends Controller {
 
         $request->session()->regenerate();
 
-        $user = Auth::user()->load('roles.capabilities');
+        $user = Auth::user()->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',
@@ -80,7 +79,7 @@ class AuthController extends Controller {
 
     public function user(Request $request): JsonResponse {
 
-        $user = $request->user()->load('roles.capabilities');
+        $user = $request->user()->load('roles.capabilities', 'preference');
 
         return response()->json([
             'user' => new UserResource($user),
@@ -103,24 +102,21 @@ class AuthController extends Controller {
 
         $user = User::where('email', $request->email)->first();
 
-        if (! $user) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No user found with this email',
-                'errors' => [
-                    'email' => ["The provided email address doesn't exist."]
-                ]
-            ], 400);
+        // Always return the same response regardless of whether the email exists,
+        // to prevent account enumeration. Only send the email if the user is real.
+        if ($user) {
+            $token = Password::broker()->createToken($user);
+
+            $frontend = config('app.frontend_url') ?? config('app.url');
+            $link = rtrim($frontend, '/') . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+
+            Mail::to($user->email)->send(new ResetPasswordMail($link));
         }
 
-        $token = Password::broker()->createToken($user);
-
-        $frontend = config('app.frontend_url') ?? config('app.url');
-        $link = rtrim($frontend, '/') . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
-
-        Mail::to($user->email)->send(new ResetPasswordMail($link));
-
-        return response()->json(['status' => 'success', 'message' => 'Your password reset link was sent to your email'], 200);
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'If that email is registered, a password reset link has been sent.',
+        ], 200);
     }
 
     // Handle resetting the user's password
@@ -180,7 +176,7 @@ class AuthController extends Controller {
         }
 
         $user->update($data);
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',
@@ -196,7 +192,7 @@ class AuthController extends Controller {
         }
         $user->avatar = null;
         $user->save();
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status' => 'success',
@@ -220,7 +216,7 @@ class AuthController extends Controller {
         $user->avatar = $path;
         $user->save();
 
-        $user->load('roles.capabilities');
+        $user->load('roles.capabilities', 'preference');
 
         return response()->json([
             'status'  => 'success',

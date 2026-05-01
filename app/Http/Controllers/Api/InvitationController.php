@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 
@@ -50,17 +51,21 @@ class InvitationController extends Controller implements HasMiddleware {
             'role_id' => 'nullable|integer|exists:roles,id',
         ]);
 
-        // Cancel any previous pending invite for this email
-        Invitation::where('email', $validated['email'])->delete();
+        // Atomic delete-old + create-new prevents two concurrent invite
+        // requests from racing each other into duplicate-row or orphan
+        // states for the same email.
+        $invitation = DB::transaction(function () use ($validated) {
+            Invitation::where('email', $validated['email'])->delete();
 
-        $invitation = Invitation::create([
-            'name'       => $validated['name'],
-            'email'      => $validated['email'],
-            'role_id'    => $validated['role_id'] ?? null,
-            'invited_by' => auth()->id(),
-            'token'      => Invitation::generateToken(),
-            'expires_at' => now()->addHours(72),
-        ]);
+            return Invitation::create([
+                'name'       => $validated['name'],
+                'email'      => $validated['email'],
+                'role_id'    => $validated['role_id'] ?? null,
+                'invited_by' => auth()->id(),
+                'token'      => Invitation::generateToken(),
+                'expires_at' => now()->addHours(72),
+            ]);
+        });
 
         $invitation->load('role', 'invitedBy');
 
