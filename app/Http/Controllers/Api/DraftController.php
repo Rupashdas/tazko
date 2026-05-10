@@ -31,7 +31,7 @@ class DraftController extends Controller {
                       ->first();
 
         if (! $draft) {
-            return response()->noContent(Response::HTTP_NOT_FOUND);
+            return response()->noContent(); // 204 – no draft saved yet (not a missing resource)
         }
 
         return response()->json([
