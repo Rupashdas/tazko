@@ -15,6 +15,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller implements HasMiddleware {
+
+    /**
+     * Recalculates and updates the project's progress based on completed tasks.
+     */
+    private function updateProjectProgress(Project $project): void {
+        $totalTasks = $project->tasks()->count();
+        if ($totalTasks === 0) {
+            $project->update(['progress' => 0]);
+            return;
+        }
+
+        $completedTasks = $project->tasks()->where('status', 'Done')->count();
+        $progress = (int) round(($completedTasks / $totalTasks) * 100);
+        $project->update(['progress' => $progress]);
+    }
+
     public static function middleware(): array {
         return [
             new Middleware('project.member'),
@@ -104,6 +120,9 @@ class TaskController extends Controller implements HasMiddleware {
                 $this->autoAddMembersAndSync($project, $task, $request->assignee_ids);
             }
 
+            // Update project progress after creating a task
+            $this->updateProjectProgress($project);
+
             return $task;
         });
 
@@ -126,12 +145,19 @@ class TaskController extends Controller implements HasMiddleware {
             'tasks.*.status'     => 'sometimes|in:Todo,In Progress,Review,Done',
         ]);
 
+        $statusChanged = false;
         foreach ($request->tasks as $item) {
             $data = ['sort_order' => $item['sort_order']];
             if (isset($item['status'])) {
                 $data['status'] = $item['status'];
+                $statusChanged = true;
             }
             $project->tasks()->where('id', $item['id'])->update($data);
+        }
+
+        // Update project progress if any task status changed
+        if ($statusChanged) {
+            $this->updateProjectProgress($project);
         }
 
         return response()->json(['message' => 'Tasks reordered.']);
@@ -178,6 +204,11 @@ class TaskController extends Controller implements HasMiddleware {
         }
 
         $task->update($request->only(['title', 'description', 'status', 'priority', 'due_date']));
+
+        // Update project progress if status changed
+        if ($request->has('status')) {
+            $this->updateProjectProgress($project);
+        }
 
         if ($request->has('assignee_ids')) {
             DB::transaction(function () use ($request, $project, $task) {
@@ -245,6 +276,9 @@ class TaskController extends Controller implements HasMiddleware {
         abort_if($task->project_id !== $project->id, 404);
 
         $task->delete();
+
+        // Update project progress after deleting a task
+        $this->updateProjectProgress($project);
 
         return response()->json(['message' => 'Task deleted successfully.']);
     }

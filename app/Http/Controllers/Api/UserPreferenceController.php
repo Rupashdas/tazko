@@ -8,15 +8,6 @@ use Illuminate\Validation\Rule;
 
 class UserPreferenceController extends Controller {
 
-    /**
-     * Allowed palette names. Must stay in sync with the keys of
-     * tazko-frontend/src/resources/palettes.js — the frontend reads the
-     * persisted value back to apply the corresponding CSS variables.
-     */
-    private const ALLOWED_PALETTES = [
-        'aurora', 'ocean', 'sunset', 'forest', 'rose', 'mono',
-    ];
-
     public function show() {
         $user = auth()->user();
         return response()->json([
@@ -32,7 +23,7 @@ class UserPreferenceController extends Controller {
         $rules = [];
 
         if ($isPalette) {
-            $rules['palette'] = ['required', 'string', Rule::in(self::ALLOWED_PALETTES)];
+            $rules['palette'] = ['required', 'string'];
         }
 
         if ($isAppearance) {
